@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
@@ -13,10 +14,13 @@ public class Enemy : MonoBehaviour
 
     NavMeshAgent agent;
 
+    
+
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
 
+        //chaseTarget = GameObject.Find("ChaseTarget");
         
     }
     private void Update()
@@ -34,11 +38,12 @@ public class Enemy : MonoBehaviour
 
         // Update agent's destination
 
-        agent.destination = chaseTarget.position;
+        agent.destination = chaseTarget.transform.position;
+    }
 
 
-
-
-
+    public void SetChaseTarget(GameObject newChaseTarget)
+    {
+        chaseTarget = newChaseTarget.transform;
     }
 }
