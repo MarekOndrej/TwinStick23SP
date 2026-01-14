@@ -1,11 +1,24 @@
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.AI;
+using UnityEngine.UIElements;
 
 public class Enemy : MonoBehaviour
 {
     //[SerializeField] Vector3 destination;
+
+    //[SerializeField] float speed = 0f;
+
     [SerializeField] Transform chaseTarget;
-    [SerializeField] float speed = 0f;
+
+    NavMeshAgent agent;
+
+    private void Awake()
+    {
+        agent = GetComponent<NavMeshAgent>();
+
+        
+    }
     private void Update()
     {
         //transform.position = destination;
@@ -13,9 +26,19 @@ public class Enemy : MonoBehaviour
 
 
         // gradual position update
-        transform.position = Vector3.MoveTowards(
-            transform.position,         //where from
-            chaseTarget.position,       //where to
-            speed * Time.deltaTime);    //how fast
+        //transform.position = Vector3.MoveTowards(
+        //    transform.position,         //where from
+        //    chaseTarget.position,       //where to
+        //    speed * Time.deltaTime);    //how fast
+
+
+        // Update agent's destination
+
+        agent.destination = chaseTarget.position;
+
+
+
+
+
     }
 }
