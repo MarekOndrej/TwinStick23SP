@@ -1,3 +1,4 @@
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -20,9 +21,25 @@ public class PlayerController : MonoBehaviour
 
         characterController.Move(move * Time.deltaTime);
 
-
+        MoveToMouse();
     
 
+    }
+
+    private void MoveToMouse()
+    {
+        Camera cam = Camera.main;
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+
+
+        //did our ray hit?
+        if (Physics.Raycast(ray, out RaycastHit hit, 500f))
+        {
+            Debug.Log(hit.collider.gameObject.name);
+
+            Debug.DrawLine(cam.transform.position, hit.point, Color.red);
+        }
     }
 
 
