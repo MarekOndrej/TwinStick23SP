@@ -25,17 +25,6 @@ public class Enemy : MonoBehaviour
     }
     private void Update()
     {
-        //transform.position = destination;
-        
-
-
-        // gradual position update
-        //transform.position = Vector3.MoveTowards(
-        //    transform.position,         //where from
-        //    chaseTarget.position,       //where to
-        //    speed * Time.deltaTime);    //how fast
-
-
         // Update agent's destination
 
         agent.destination = chaseTarget.transform.position;
