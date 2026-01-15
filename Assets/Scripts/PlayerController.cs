@@ -39,6 +39,11 @@ public class PlayerController : MonoBehaviour
             Debug.Log(hit.collider.gameObject.name);
 
             Debug.DrawLine(cam.transform.position, hit.point, Color.red);
+
+            Vector3 direction = hit.point - transform.position;
+            direction.y = 0f;
+
+            transform.rotation = Quaternion.LookRotation(direction);
         }
     }
 
