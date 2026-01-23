@@ -5,7 +5,11 @@ public class PlayerController : MonoBehaviour
 {
     CharacterController characterController;
 
-    [SerializeField] float movementSpeed = 6f;
+    [SerializeField]    float movementSpeed = 6f;
+    [SerializeField]    float gravityForce = -9.81f;
+
+    [SerializeField]    Vector3 velocity;
+
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
@@ -19,7 +23,25 @@ public class PlayerController : MonoBehaviour
 
         Vector3 move = new Vector3 (horizontalInput, 0f, verticalInput).normalized * movementSpeed;
 
-        characterController.Move(move * Time.deltaTime);
+        //ground check and reset velocity pull
+        if (characterController.isGrounded)
+        {
+            velocity.y = -2f; //to keep us ground and never floating
+        }
+
+
+        //
+
+        if (characterController.isGrounded && Input.GetButton("Jump"))
+        {
+            velocity.y = Mathf.Sqrt(5f * -2 * gravityForce);
+        }
+
+        // apply gravity
+
+        velocity.y += gravityForce * Time.deltaTime;
+
+        characterController.Move((move+velocity) * Time.deltaTime);
 
         MoveToMouse();
     
