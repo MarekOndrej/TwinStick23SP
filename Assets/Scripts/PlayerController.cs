@@ -1,5 +1,5 @@
-
 using UnityEngine;
+
 
 public class PlayerController : MonoBehaviour
 {
@@ -9,6 +9,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField]    float gravityForce = -9.81f;
 
     [SerializeField]    Vector3 velocity;
+
+    [SerializeField] LayerMask aimLayers;
+
+    [SerializeField] Transform aimPoint;
+    [SerializeField] Transform gunSocket;
 
     private void Awake()
     {
@@ -56,16 +61,27 @@ public class PlayerController : MonoBehaviour
 
 
         //did our ray hit?
-        if (Physics.Raycast(ray, out RaycastHit hit, 500f))
+        if (Physics.Raycast(ray, out RaycastHit hit, 500f, aimLayers))
         {
             Debug.Log(hit.collider.gameObject.name);
 
             Debug.DrawLine(cam.transform.position, hit.point, Color.red);
 
+
+            // Aiming
             Vector3 direction = hit.point - transform.position;
+            Vector3 aimdirection = direction;
+            gunSocket.rotation = Quaternion.LookRotation(aimdirection);
+
+
             direction.y = 0f;
 
             transform.rotation = Quaternion.LookRotation(direction);
+
+
+            // Move aim point
+
+            aimPoint.position = Vector3.MoveTowards(transform.position, hit.point, 10f);
         }
     }
 
