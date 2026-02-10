@@ -10,6 +10,8 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField]    Vector3 velocity;
 
+    [SerializeField] Gun gun;
+
     [SerializeField] LayerMask aimLayers;
 
     [SerializeField] Transform aimPoint;
@@ -35,11 +37,20 @@ public class PlayerController : MonoBehaviour
         }
 
 
-        //
+        // jump
 
         if (characterController.isGrounded && Input.GetButton("Jump"))
         {
             velocity.y = Mathf.Sqrt(5f * -2 * gravityForce);
+        }
+
+        if (Input.GetButton("Fire1") && gun != null)
+        {
+            gun.WantsToFire = true;
+        }
+        if (Input.GetButtonUp("Fire1") && gun != null)
+        {
+            gun.WantsToFire = false;
         }
 
         // apply gravity
@@ -70,7 +81,7 @@ public class PlayerController : MonoBehaviour
 
             // Aiming
             Vector3 direction = hit.point - transform.position;
-            Vector3 aimdirection = direction;
+            Vector3 aimdirection = direction + new Vector3(0, 0.5f, 0f);
             gunSocket.rotation = Quaternion.LookRotation(aimdirection);
 
 

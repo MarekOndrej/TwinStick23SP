@@ -1,4 +1,5 @@
 using UnityEngine;
+using static UnityEngine.Rendering.DebugUI.Table;
 
 public class Gun : MonoBehaviour
 {
@@ -7,9 +8,12 @@ public class Gun : MonoBehaviour
 
     [SerializeField] float fireDelay = 1f;
 
+    public bool WantsToFire = false;
+
     double _nextAttackTime;
     private void Update()
     {
+        if (!WantsToFire) return;
         double now = Time.timeAsDouble;
 
         if (now >= _nextAttackTime)
@@ -20,7 +24,6 @@ public class Gun : MonoBehaviour
 
 
 
-        
     }
     private void SpawnProjectile()
     {
