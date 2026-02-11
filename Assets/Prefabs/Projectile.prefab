@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 914443893974556583}
   - component: {fileID: 47269651125526925}
   - component: {fileID: 4704879331963004090}
+  - component: {fileID: -7601703907980426123}
   m_Layer: 0
   m_Name: Projectile
   m_TagString: Untagged
@@ -220,3 +221,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projectile
   velocity: 10
+--- !u!136 &-7601703907980426123
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5738801561617854697}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.1
+  m_Height: 0.32
+  m_Direction: 2
+  m_Center: {x: 0, y: 0, z: 0}

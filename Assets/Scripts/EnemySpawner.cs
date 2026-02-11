@@ -28,13 +28,14 @@ public class EnemySpawner : MonoBehaviour
     {
         yield return new WaitForSeconds(startDelay);
 
+        while (true)
+        {
+            SpawnEnemy();
+            yield return new WaitForSeconds(delayBetweenEnemies);
+        }
+        
 
-        SpawnEnemy();
-
-        yield return new WaitForSeconds(delayBetweenEnemies);
-
-        SpawnEnemy();
-
+        
     }
 
 
