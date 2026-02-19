@@ -10,7 +10,7 @@ public class HealthBar : MonoBehaviour
     {
         camera = Camera.main;
 
-        //hide health bar sprite
+        
         
     }
 
