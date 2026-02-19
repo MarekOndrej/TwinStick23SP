@@ -221,6 +221,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projectile
   velocity: 10
+  maxBounce: 2
+  maxLife: 5
+  damage: 1
+  damageableLayers:
+    serializedVersion: 2
+    m_Bits: 128
 --- !u!136 &-7601703907980426123
 CapsuleCollider:
   m_ObjectHideFlags: 0

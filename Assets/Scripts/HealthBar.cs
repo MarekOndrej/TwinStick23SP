@@ -1,7 +1,9 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class HealthBar : MonoBehaviour
 {
+    [SerializeField] Image healthBarSprite;
     private Camera camera;
 
     private void Awake()
@@ -15,5 +17,8 @@ public class HealthBar : MonoBehaviour
         transform.rotation = camera.transform.rotation;
     }
 
-
+    public void HealthPercent(float currentHealth, float maxHealth)
+    {
+        healthBarSprite.fillAmount = currentHealth / maxHealth;
+    }
 }
