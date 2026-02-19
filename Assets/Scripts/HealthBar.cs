@@ -9,6 +9,9 @@ public class HealthBar : MonoBehaviour
     private void Awake()
     {
         camera = Camera.main;
+
+        //hide health bar sprite
+        
     }
 
     private void Update()

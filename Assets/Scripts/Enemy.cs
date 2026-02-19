@@ -27,6 +27,9 @@ public class Enemy : MonoBehaviour
         //chaseTarget = GameObject.Find("ChaseTarget");
 
         currentHealth = maxHealth;
+
+        //disable health bar
+        healthBar.gameObject.SetActive(false);
         
     }
     private void Update()
@@ -44,12 +47,20 @@ public class Enemy : MonoBehaviour
 
     public void TakeDamage(float incomingDamage)
     {
+        
+
         currentHealth -= incomingDamage;
         if (currentHealth == 0)
         {
             Destroy(this.gameObject);
         }
 
+        //is the healthbar on?
+        if (!healthBar.gameObject.activeSelf)
+            healthBar.gameObject.SetActive(true);
+            
+            
+        // changing the visual bar
         healthBar.HealthPercent(currentHealth, maxHealth);
     }
 }
