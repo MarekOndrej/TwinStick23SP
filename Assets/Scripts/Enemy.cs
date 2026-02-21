@@ -16,6 +16,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] HealthBar healthBar;
     [SerializeField] private float maxHealth = 10;
     [SerializeField] private float currentHealth;
+    [SerializeField] private bool isRanged = false;
     
 
     

@@ -1373,6 +1373,7 @@ GameObject:
   - component: {fileID: 1380528130}
   - component: {fileID: 1380528129}
   - component: {fileID: 1380528133}
+  - component: {fileID: 1380528134}
   m_Layer: 6
   m_Name: Ground
   m_TagString: Untagged
@@ -1487,7 +1488,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
   m_SerializedVersion: 0
-  m_AgentTypeID: 0
+  m_AgentTypeID: -1372625422
   m_CollectObjects: 0
   m_Size: {x: 10, y: 10, z: 10}
   m_Center: {x: 0, y: 2, z: 0}
@@ -1502,9 +1503,41 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.1
+  m_VoxelSize: 0.33333334
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: b52d715ab916c0a4586de27aa4c69a9a, type: 2}
+  m_BuildHeightMesh: 0
+--- !u!114 &1380528134
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1380528128}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
+  m_SerializedVersion: 0
+  m_AgentTypeID: 0
+  m_CollectObjects: 0
+  m_Size: {x: 10, y: 10, z: 10}
+  m_Center: {x: 0, y: 2, z: 0}
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_UseGeometry: 0
+  m_DefaultArea: 0
+  m_GenerateLinks: 0
+  m_IgnoreNavMeshAgent: 1
+  m_IgnoreNavMeshObstacle: 1
+  m_OverrideTileSize: 0
+  m_TileSize: 256
+  m_OverrideVoxelSize: 0
+  m_VoxelSize: 0.1
+  m_MinRegionArea: 2
+  m_NavMeshData: {fileID: 23800000, guid: e9f1545ac78c7b64a919f9cf87f1e25b, type: 2}
   m_BuildHeightMesh: 0
 --- !u!1 &1436049632
 GameObject:
@@ -2077,6 +2110,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EnemySpawner
       objectReference: {fileID: 0}
+    - target: {fileID: 6379926689797260410, guid: 15449cb06935a90458da21d4eb8f37ab, type: 3}
+      propertyPath: enemyPrefab
+      value: 
+      objectReference: {fileID: 9046592866147141170, guid: a0ee20e1ab33dab4c8d57aafd801e7e5, type: 3}
     - target: {fileID: 7000447831370713005, guid: 15449cb06935a90458da21d4eb8f37ab, type: 3}
       propertyPath: m_LocalPosition.x
       value: 10.39
