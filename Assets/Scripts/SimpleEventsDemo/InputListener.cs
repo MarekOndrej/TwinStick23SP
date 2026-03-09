@@ -4,6 +4,7 @@ using UnityEngine;
 public class InputListener : MonoBehaviour
 {
     public event Action onSpacePressed;
+    public event Action onEnterPressed;
     
     void Update()
     {
@@ -14,6 +15,11 @@ public class InputListener : MonoBehaviour
             //send msg
             //can receive empty = "?"
             onSpacePressed?.Invoke();
+        }
+
+        if (Input.GetKeyDown(KeyCode.Return))
+        {
+            onEnterPressed?.Invoke();
         }
     }
 }
