@@ -2,18 +2,18 @@ using UnityEngine;
 
 public class CubeController : MonoBehaviour
 {
-    [SerializeField] InputListener inputListener;
+    [SerializeField] DemoEventManagerSO eventManager;
     Vector3 originalScale;
     bool isLarge = false;
 
     private void OnEnable()
     {
-        inputListener.onSpacePressed += ResizeCube;
+        eventManager.onResize += ResizeCube;
     }
 
     private void OnDisable()
     {
-        inputListener.onSpacePressed -= ResizeCube;
+        eventManager.onResize -= ResizeCube;
     }
 
     private void Start()

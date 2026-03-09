@@ -15,7 +15,7 @@ public class Door : MonoBehaviour
     [SerializeField] Transform shutPos;
     [SerializeField] Transform openPos;
 
-    [SerializeField] InputListener inputListener;
+    [SerializeField] DemoEventManagerSO eventManager;
 
 
     bool _doorToggleRequested;
@@ -46,12 +46,12 @@ public class Door : MonoBehaviour
 
     private void OnEnable()
     {
-        inputListener.onEnterPressed += RequestToggle;
+        eventManager.onDoorToggle += RequestToggle;
     }
 
     private void OnDisable()
     {
-        inputListener.onEnterPressed -= RequestToggle;
+        eventManager.onDoorToggle -= RequestToggle;
     }
 
     private void MoveDoor(Transform target)

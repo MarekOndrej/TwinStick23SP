@@ -5,8 +5,10 @@ public class InputListener : MonoBehaviour
 {
 
     [SerializeField] int doorID = 0;
-    public event Action onSpacePressed;
-    public event Action<int> onEnterPressed;
+
+    [SerializeField] DemoEventManagerSO eventManger;
+    //public event Action onSpacePressed;
+    //public event Action<int> onEnterPressed;
 
     private void Start()
     {
@@ -21,12 +23,13 @@ public class InputListener : MonoBehaviour
 
             //send msg
             //can receive empty = "?"
-            onSpacePressed?.Invoke();
+            //onSpacePressed?.Invoke();
+
+            eventManger.Resize();
+            eventManger.ToggleLight();
+            eventManger.DoorToggle(doorID);
         }
 
-        if (Input.GetKeyDown(KeyCode.Return))
-        {
-            onEnterPressed?.Invoke(doorID);
-        }
+        //eventManager.HealthGained(30);
     }
 }
