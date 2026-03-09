@@ -1,16 +1,71 @@
 using UnityEngine;
+using TMPro;
 
 public class Door : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    [SerializeField] int doorID;
+
+    [SerializeField] Light doorLight;
+    [SerializeField] TMP_Text doorText;
+
+    [SerializeField] Color openColor = Color.green;
+    [SerializeField] Color closeColor = Color.red;
+
+    [SerializeField] Transform door;
+    [SerializeField] Transform shutPos;
+    [SerializeField] Transform openPos;
+
+    [SerializeField] InputListener inputListener;
+
+
+    bool _doorToggleRequested;
+    bool _isOpen;
+
+    private void Start()
     {
-        
+        _isOpen = false;
+        doorText.text = doorID.ToString();
+        doorLight.color = closeColor;
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        
+        if (_doorToggleRequested)
+        {
+            if (!_isOpen)
+            {
+                MoveDoor(openPos);
+            }
+            else
+            {
+                MoveDoor(shutPos);
+            }
+        }
+    }
+
+    private void OnEnable()
+    {
+        inputListener.onEnterPressed += RequestToggle;
+    }
+
+    private void OnDisable()
+    {
+        inputListener.onEnterPressed -= RequestToggle;
+    }
+
+    private void MoveDoor(Transform target)
+    {
+        door.position = Vector3.MoveTowards(door.position, target.position, 5f * Time.deltaTime);
+
+        if(Vector3.Distance(door.position, target.position) < 0.01f)
+        {
+            _isOpen = !_isOpen;
+            _doorToggleRequested = false;
+        }
+    }
+
+    private void RequestToggle()
+    {
+        _doorToggleRequested = true;
     }
 }
