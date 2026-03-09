@@ -479,7 +479,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputListener
   doorID: 0
-  eventManger: {fileID: 0}
+  eventManger: {fileID: 11400000, guid: 101d158b75d5e6f409d16a2cbca24b1b, type: 2}
 --- !u!4 &1065473070
 Transform:
   m_ObjectHideFlags: 0
