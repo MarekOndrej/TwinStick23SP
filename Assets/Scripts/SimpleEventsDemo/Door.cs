@@ -43,6 +43,7 @@ public class Door : MonoBehaviour
         }
     }
 
+
     private void OnEnable()
     {
         inputListener.onEnterPressed += RequestToggle;
@@ -59,13 +60,18 @@ public class Door : MonoBehaviour
 
         if(Vector3.Distance(door.position, target.position) < 0.01f)
         {
+            
             _isOpen = !_isOpen;
             _doorToggleRequested = false;
+            doorLight.color = (_isOpen) ? openColor : closeColor;
         }
     }
 
-    private void RequestToggle()
+    private void RequestToggle(int incomingDoorID)
     {
-        _doorToggleRequested = true;
+        if (incomingDoorID == doorID)
+        {
+            _doorToggleRequested = true;
+        }
     }
 }

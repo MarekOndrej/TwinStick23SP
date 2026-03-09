@@ -3,9 +3,16 @@ using UnityEngine;
 
 public class InputListener : MonoBehaviour
 {
+
+    [SerializeField] int doorID = 0;
     public event Action onSpacePressed;
-    public event Action onEnterPressed;
-    
+    public event Action<int> onEnterPressed;
+
+    private void Start()
+    {
+        Debug.Log("Hello");
+    }
+
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
@@ -19,7 +26,7 @@ public class InputListener : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Return))
         {
-            onEnterPressed?.Invoke();
+            onEnterPressed?.Invoke(doorID);
         }
     }
 }
