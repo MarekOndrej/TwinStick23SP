@@ -74,15 +74,15 @@ public class PlayerController : MonoBehaviour
         //did our ray hit?
         if (Physics.Raycast(ray, out RaycastHit hit, 500f, aimLayers))
         {
-            Debug.Log(hit.collider.gameObject.name);
+            //Debug.Log(hit.collider.gameObject.name);
 
             Debug.DrawLine(cam.transform.position, hit.point, Color.red);
 
 
             // Aiming
             Vector3 direction = hit.point - transform.position;
-            Vector3 aimdirection = direction + new Vector3(0, 0.5f, 0f);
-            gunSocket.rotation = Quaternion.LookRotation(aimdirection);
+            Vector3 aimdirection = direction + new Vector3(0, 0f, 0f);
+            gunSocket.rotation = Quaternion.LookRotation(direction);
 
 
             direction.y = 0f;

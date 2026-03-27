@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
@@ -13,17 +14,39 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] GameObject chaseTarget;
 
     //how long to wait before spawning, how long between enemies
-    [SerializeField] float waitSeconds = 4f;
+    
     [SerializeField] float betweenEnemies = 5f;
+
+    //event manager
+    private EventManagerSO eventManager;
+
+    private void Awake()
+    {
+        eventManager = Resources.Load<EventManagerSO>("EventManager");
+        chaseTarget = GameObject.Find("ChaseTarget");
+    }
 
     private void Start()
     {
-        chaseTarget = GameObject.Find("ChaseTarget");
+        
         //SpawnEnemy();
 
-        //StartCoroutine(SpawnEnemy());
+        
     }
-    
+
+    private void OnEnable()
+    {
+        eventManager.onZoneTriggered += StartSpawningEnemies;
+    }
+    private void OnDisable()
+    {
+        eventManager.onZoneTriggered -= StartSpawningEnemies;
+    }
+
+    private void StartSpawningEnemies()
+    {
+        StartCoroutine(SpawnEnemy());
+    }
     IEnumerator SpawnEnemy()
     {
         // === get acces to spawnpoints ===
