@@ -3,40 +3,71 @@ using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
 {
+    //spawn points
+    [SerializeField] EnemySpawnPoints spawnPoints;
+
+    //enemy to spawn
     [SerializeField] Enemy enemyPrefab;
 
+    //who to chase
     [SerializeField] GameObject chaseTarget;
 
+    //how long to wait before spawning, how long between enemies
     [SerializeField] float waitSeconds = 4f;
     [SerializeField] float betweenEnemies = 5f;
 
     private void Start()
     {
         chaseTarget = GameObject.Find("ChaseTarget");
-        SpawnEnemy();
+        //SpawnEnemy();
 
-        StartCoroutine(enemySpawnDelay(waitSeconds, betweenEnemies));
+        //StartCoroutine(SpawnEnemy());
     }
-
-    private void SpawnEnemy()
+    
+    IEnumerator SpawnEnemy()
     {
-        Enemy newEnemy = Instantiate(enemyPrefab, transform.position, Quaternion.identity);
-        newEnemy.SetChaseTarget(chaseTarget);
-    }
+        // === get acces to spawnpoints ===
 
-    IEnumerator enemySpawnDelay(float startDelay, float delayBetweenEnemies)
-    {
-        yield return new WaitForSeconds(startDelay);
+        // == method ==
+        //var possibleLocations = spawnPoints.GetSpawnPoint();
 
+
+        //property
+        var possibleLocations = spawnPoints.SpawnPoints;
+
+        // chose a random spawn point
         while (true)
         {
-            SpawnEnemy();
-            yield return new WaitForSeconds(delayBetweenEnemies);
-        }
-        
+            int randomIndex = Random.Range(0, possibleLocations.Count);
+            var chosenSpawnPoint = possibleLocations[randomIndex];
 
+            // spawn at chosen position
+            Enemy newEnemy = Instantiate(enemyPrefab, chosenSpawnPoint.position, Quaternion.identity);
+            newEnemy.SetChaseTarget(chaseTarget);
+
+            //delay
+            yield return new WaitForSeconds(betweenEnemies);
+        }
+    
         
     }
+    
+    // == old code ==
+    //===============
+
+    //IEnumerator enemySpawnDelay(float startDelay, float delayBetweenEnemies)
+    //{
+    //    yield return new WaitForSeconds(startDelay);
+
+    //    while (true)
+    //    {
+    //        SpawnEnemy();
+    //        yield return new WaitForSeconds(delayBetweenEnemies);
+    //    }
+
+
+
+    //}
 
 
     //IEnumerator Pause(float delay)
@@ -45,4 +76,6 @@ public class EnemySpawner : MonoBehaviour
     //    yield return new WaitForSeconds(delay);
     //    Debug.Log("pause is over");
     //}
+
+    
 }

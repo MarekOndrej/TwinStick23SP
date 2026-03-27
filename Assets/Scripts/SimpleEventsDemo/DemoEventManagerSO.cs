@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Managers/EventManager", fileName = "EventManager")]
+[CreateAssetMenu(menuName = "Managers/DemoEventManager", fileName = "DemoEventManager")]
 public class DemoEventManagerSO : ScriptableObject
 {
 
