@@ -16,13 +16,13 @@ public class LevelManager : MonoBehaviour
     {
         eventManager.onGameOver += GameOver;
         eventManager.onGamePaused += GamePaused;
-        eventManager.onGameResumed += GameResumed;
+        //eventManager.onGameResumed += GameResumed;
     }
     private void OnDisable()
     {
         eventManager.onGameOver -= GameOver;
         eventManager.onGamePaused -= GamePaused;
-        eventManager.onGameResumed -= GameResumed;
+        //eventManager.onGameResumed -= GameResumed;
     }
 
     private void Start()
@@ -33,10 +33,10 @@ public class LevelManager : MonoBehaviour
     {
         currentGameState = GameState.paused;
     }
-    private void GameResumed()
+    /*private void GameResumed()
     {
         currentGameState = GameState.resumed;
-    }
+    }*/
     private void GameOver()
     {
         currentGameState = GameState.gameOver;

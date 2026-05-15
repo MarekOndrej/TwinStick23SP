@@ -15,7 +15,7 @@ public class EventManagerSO : ScriptableObject
     public event Action<float, float> onPlayerHealthChanged;
     public event Action onGamePaused;
     public event Action onGameResumed;
-    public event Action onGunFired;
+    //public event Action onGunFired;
 
 
     // == Methods (sending of messages) ==
