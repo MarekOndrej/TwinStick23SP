@@ -20,7 +20,7 @@ public class HealthBar : MonoBehaviour
         transform.rotation = camera.transform.rotation;
     }
 
-    public void HealthPercent(float currentHealth, float maxHealth)
+    public void UpdateHealthBar(float currentHealth, float maxHealth)
     {
         healthBarSprite.fillAmount = currentHealth / maxHealth;
     }

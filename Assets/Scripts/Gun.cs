@@ -10,6 +10,9 @@ public class Gun : MonoBehaviour
 
     public bool WantsToFire = false;
 
+    public float RecoilAmount => recoilAmount;
+    [SerializeField] float recoilAmount = 0.3f;
+
     double _nextAttackTime;
     private void Update()
     {

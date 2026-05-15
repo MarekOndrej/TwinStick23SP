@@ -1,43 +1,44 @@
 using System.Collections;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
 {
-    //spawn points
+    // Enemy to spawn
+    [SerializeField] Enemy enemyToSpawn;
+
+    // Chase target
+    [SerializeField] Transform chaseTarget;
+
+    // Spawn points
     [SerializeField] EnemySpawnPoints spawnPoints;
 
-    //enemy to spawn
-    [SerializeField] Enemy enemyPrefab;
+    // Number enemies to spawn
+    [SerializeField] int numberOfEnemiesToSpawn = 10;
 
-    //who to chase
-    [SerializeField] GameObject chaseTarget;
+    // Spawn delay
+    [SerializeField] float spawnDelay = 1f;
 
-    //how long to wait before spawning, how long between enemies
-    
-    [SerializeField] float betweenEnemies = 5f;
-
-    //event manager
+    // Event manager
     private EventManagerSO eventManager;
+
+    // Level manager
+    LevelManager levelManager;
+
+    bool isSpawning;
 
     private void Awake()
     {
         eventManager = Resources.Load<EventManagerSO>("EventManager");
-        chaseTarget = GameObject.Find("ChaseTarget");
-    }
-
-    private void Start()
-    {
-        
-        //SpawnEnemy();
-
-        
+        levelManager = FindFirstObjectByType<LevelManager>();
+        isSpawning = false;
     }
 
     private void OnEnable()
     {
+
         eventManager.onZoneTriggered += StartSpawningEnemies;
     }
+
     private void OnDisable()
     {
         eventManager.onZoneTriggered -= StartSpawningEnemies;
@@ -45,60 +46,51 @@ public class EnemySpawner : MonoBehaviour
 
     private void StartSpawningEnemies()
     {
-        StartCoroutine(SpawnEnemy());
+        if (isSpawning)
+            return; // Already spawning, nothing to do
+
+        isSpawning = true;
+        StartCoroutine(SpawnEnemies());
     }
-    IEnumerator SpawnEnemy()
+
+    IEnumerator SpawnEnemies()
     {
-        // === get acces to spawnpoints ===
+        // Get all the possible spawn locations
+        var possibleLocations = spawnPoints.GetSpawnPoint(); // using method
 
-        // == method ==
-        //var possibleLocations = spawnPoints.GetSpawnPoint();
+        int enemiesSpawnedThisWave = 0;
 
-
-        //property
-        var possibleLocations = spawnPoints.SpawnPoints;
-
-        // chose a random spawn point
-        while (true)
+        while (enemiesSpawnedThisWave < numberOfEnemiesToSpawn)
         {
+            // Pause coroutine if the game is not running
+            while (levelManager.CurrentGameState != GameState.running)
+            {
+                yield return null;
+            }
+
+            // choose a random spawn location
             int randomIndex = Random.Range(0, possibleLocations.Count);
             var chosenSpawnPoint = possibleLocations[randomIndex];
 
-            // spawn at chosen position
-            Enemy newEnemy = Instantiate(enemyPrefab, chosenSpawnPoint.position, Quaternion.identity);
-            newEnemy.SetChaseTarget(chaseTarget);
+            // Spawn an enemy at the spawn location
+            Instantiate(enemyToSpawn, chosenSpawnPoint.position, Quaternion.identity).SetChaseTarget(chaseTarget);
 
-            //delay
-            yield return new WaitForSeconds(betweenEnemies);
+            enemiesSpawnedThisWave++;
+
+            // Delay
+            float timer = 0f;
+            while (timer < spawnDelay)
+            {
+                if (levelManager.CurrentGameState == GameState.running)
+                {
+                    timer += Time.deltaTime;
+                }
+                yield return null;
+            }
+
         }
-    
-        
+
+        isSpawning = false;
     }
-    
-    // == old code ==
-    //===============
 
-    //IEnumerator enemySpawnDelay(float startDelay, float delayBetweenEnemies)
-    //{
-    //    yield return new WaitForSeconds(startDelay);
-
-    //    while (true)
-    //    {
-    //        SpawnEnemy();
-    //        yield return new WaitForSeconds(delayBetweenEnemies);
-    //    }
-
-
-
-    //}
-
-
-    //IEnumerator Pause(float delay)
-    //{
-    //    Debug.Log("starting pause");
-    //    yield return new WaitForSeconds(delay);
-    //    Debug.Log("pause is over");
-    //}
-
-    
 }

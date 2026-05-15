@@ -185,9 +185,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   chaseTarget: {fileID: 0}
+  aggroDistance: 12
   healthBar: {fileID: 1960194027739420822}
   maxHealth: 20
-  currentHealth: 10
+  damageAmount: 5
+  damageDelay: 1
 --- !u!136 &4522122819673901994
 CapsuleCollider:
   m_ObjectHideFlags: 0
