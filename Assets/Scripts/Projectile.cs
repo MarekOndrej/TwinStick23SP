@@ -47,19 +47,19 @@ public class Projectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        bounceCounter++;
-        // destruction
+        // Apply damage first so it still lands on the impact frame
+        if ((damageableLayers.value & (1 << other.gameObject.layer)) > 0)
+        {
+            if (other.TryGetComponent<Enemy>(out Enemy detectedEnemy))
+            {
+                detectedEnemy.TakeDamage(damage);
+            }
+        }
 
-        if (bounceCounter == maxBounce)
+        bounceCounter++;
+        if (bounceCounter >= maxBounce)
         {
             Destroy(this.gameObject);
-        }
-        // see if the object is on a damageable layer
-        if((damageableLayers.value & (1<<other.gameObject.layer))> 0)
-        {
-            //get enemy component and tell it to take damage
-            Enemy detectedEnemy = other.GetComponent<Enemy>();
-            detectedEnemy.TakeDamage(damage);
         }
     }
     private void Update()

@@ -35,7 +35,7 @@ public class LevelManager : MonoBehaviour
     }
     private void GameResumed()
     {
-        currentGameState = GameState.resumed;
+        currentGameState = GameState.running;
     }
     private void GameOver()
     {
