@@ -1,5 +1,4 @@
 using UnityEngine;
-using static UnityEngine.Rendering.DebugUI.Table;
 
 public class Gun : MonoBehaviour
 {
@@ -13,7 +12,14 @@ public class Gun : MonoBehaviour
     public float RecoilAmount => recoilAmount;
     [SerializeField] float recoilAmount = 0.3f;
 
+    EventManagerSO eventManager;
     double _nextAttackTime;
+
+    private void Awake()
+    {
+        eventManager = Resources.Load<EventManagerSO>("EventManager");
+    }
+
     private void Update()
     {
         if (!WantsToFire) return;
@@ -24,16 +30,15 @@ public class Gun : MonoBehaviour
             SpawnProjectile();
             _nextAttackTime = now + fireDelay;
         }
-
-
-
     }
+
     private void SpawnProjectile()
     {
-
-
-        Debug.Log(projectile);
+        if (projectile == null || firingPoint == null) return;
 
         Instantiate(projectile, firingPoint.position, firingPoint.rotation);
+
+        // Notify listeners (player recoil, audio, muzzle FX, etc.)
+        if (eventManager != null) eventManager.GunFired();
     }
 }

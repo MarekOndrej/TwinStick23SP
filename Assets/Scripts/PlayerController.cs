@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 
 public class PlayerController : MonoBehaviour
@@ -7,6 +8,7 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] float movementSpeed = 6f;
     [SerializeField] float gravityForce = -9.81f;
+    [SerializeField] float jumpHeight = 5f;
 
     [SerializeField] Vector3 velocity;
 
@@ -18,131 +20,157 @@ public class PlayerController : MonoBehaviour
     [SerializeField] Transform gunSocket;
 
     Vector3 recoilVelocity;
-    [SerializeField] float recoverySpeed;
+    [SerializeField] float recoverySpeed = 8f;
 
 
-    //managers 
+    //managers
     LevelManager levelManager;
     EventManagerSO eventManager;
+
+    // Input System action handles
+    InputAction moveAction;
+    InputAction jumpAction;
+    InputAction attackAction;
 
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
         levelManager = FindFirstObjectByType<LevelManager>();
         eventManager = Resources.Load<EventManagerSO>("EventManager");
+
+        var actions = InputSystem.actions;
+        if (actions == null)
+        {
+            Debug.LogError(
+                "PlayerController: InputSystem.actions is null. " +
+                "Set the project-wide actions asset in Project Settings → Input System Package.");
+            return;
+        }
+
+        moveAction = actions.FindAction("Player/Move");
+        jumpAction = actions.FindAction("Player/Jump");
+        attackAction = actions.FindAction("Player/Attack");
+    }
+
+    private void OnEnable()
+    {
+        // Ensure the Player action map is active even if some other script disabled it
+        InputSystem.actions?.FindActionMap("Player")?.Enable();
+
+        // Recoil now fires when the gun actually shoots, not every frame Fire is held
+        if (eventManager != null)
+            eventManager.onGunFired += HandleShotFired;
+    }
+
+    private void OnDisable()
+    {
+        if (eventManager != null)
+            eventManager.onGunFired -= HandleShotFired;
     }
 
     private void Update()
     {
+        bool pausePressed = Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
 
         if (levelManager.CurrentGameState == GameState.paused)
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (pausePressed)
             {
                 eventManager.GameResumed();
             }
-
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (levelManager.CurrentGameState == GameState.gameOver)
+        {
+            if (gun != null) gun.WantsToFire = false;
+            return;
+        }
+
+        if (pausePressed)
         {
             eventManager.GamePaused();
-            gun.WantsToFire = false;
+            if (gun != null) gun.WantsToFire = false;
             return;
         }
 
+        // Movement input
+        Vector2 moveInput = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+        Vector3 move = new Vector3(moveInput.x, 0f, moveInput.y);
+        if (move.sqrMagnitude > 1f) move.Normalize();
+        move *= movementSpeed;
 
-
-        //read horizontal and vertical input
-        float horizontalInput = Input.GetAxisRaw("Horizontal");
-        float verticalInput = Input.GetAxisRaw("Vertical");
-
-        Vector3 move = new Vector3(horizontalInput, 0f, verticalInput).normalized * movementSpeed;
-
-        //ground check and reset velocity pull
+        // Ground check & jump
         if (characterController.isGrounded)
         {
-            velocity.y = -2f; //to keep us ground and never floating
+            velocity.y = -2f; // keep us pinned to the ground when grounded
+
+            if (jumpAction != null && jumpAction.WasPressedThisFrame())
+            {
+                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravityForce);
+            }
         }
 
+        // Recoil decays toward zero
         recoilVelocity = Vector3.MoveTowards(
             recoilVelocity,
             Vector3.zero,
-            recoverySpeed * Time.deltaTime
-            );
+            recoverySpeed * Time.deltaTime);
 
-
-        velocity.y += gravityForce *= Time.deltaTime;
-
-        characterController.Move((move + recoilVelocity + velocity) * Time.deltaTime);
-
-        // jump
-
-        if (characterController.isGrounded && Input.GetButton("Jump"))
-        {
-            velocity.y = Mathf.Sqrt(5f * -2 * gravityForce);
-        }
-
-        if (Input.GetButton("Fire1") && gun != null)
-        {
-            gun.WantsToFire = true;
-            HandleShotFired();
-        }
-        if (Input.GetButtonUp("Fire1") && gun != null)
-        {
-            gun.WantsToFire = false;
-        }
-
-        // apply gravity
-
+        // Apply gravity (additive — do not mutate gravityForce)
         velocity.y += gravityForce * Time.deltaTime;
 
-        characterController.Move((move + velocity) * Time.deltaTime);
+        // Single Move per frame, including recoil
+        characterController.Move((move + recoilVelocity + velocity) * Time.deltaTime);
+
+        // Fire control — Gun handles its own cadence; we just set intent.
+        if (gun != null)
+        {
+            gun.WantsToFire = attackAction != null && attackAction.IsPressed();
+        }
 
         MoveToMouse();
-
-
     }
 
-    
+
 
     private void MoveToMouse()
     {
         Camera cam = Camera.main;
+        if (cam == null) return;
 
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        if (Mouse.current == null) return;
+        Vector2 mousePos = Mouse.current.position.ReadValue();
+        Ray ray = cam.ScreenPointToRay(mousePos);
 
 
         //did our ray hit?
         if (Physics.Raycast(ray, out RaycastHit hit, 500f, aimLayers))
         {
-            //Debug.Log(hit.collider.gameObject.name);
-
             Debug.DrawLine(cam.transform.position, hit.point, Color.red);
-
 
             // Aiming
             Vector3 direction = hit.point - transform.position;
-            Vector3 aimdirection = direction + new Vector3(0, 0f, 0f);
-            gunSocket.rotation = Quaternion.LookRotation(direction);
+            if (gunSocket != null) gunSocket.rotation = Quaternion.LookRotation(direction);
 
 
             direction.y = 0f;
-
-            transform.rotation = Quaternion.LookRotation(direction);
+            if (direction.sqrMagnitude > 0.0001f)
+                transform.rotation = Quaternion.LookRotation(direction);
 
 
             // Move aim point
-
-            aimPoint.position = Vector3.MoveTowards(transform.position, hit.point, 10f);
+            if (aimPoint != null)
+                aimPoint.position = Vector3.MoveTowards(transform.position, hit.point, 10f);
         }
     }
 
     private void HandleShotFired()
     {
+        if (gunSocket == null || gun == null) return;
         AddRecoil(-gunSocket.forward, gun.RecoilAmount);
     }
+
     private void AddRecoil(Vector3 direction, float strength)
     {
         if (direction.sqrMagnitude > 0.001f)

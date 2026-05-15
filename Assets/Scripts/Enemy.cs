@@ -12,11 +12,14 @@ public class Enemy : MonoBehaviour
     [Header("Health related")]
     [SerializeField] HealthBar healthBar;
     [SerializeField] float maxHealth = 50f;
+    [SerializeField] int scoreValue = 10;
     float currentHealth;
+    EventManagerSO eventManager;
 
     [Header("Damage related")]
     [SerializeField] float damageAmount = 5f;
     [SerializeField] float damageDelay = 1f;
+    [SerializeField] float meleeRange = 2f;
     float damageTimer;
     Damageable playerDamageableComponent;
 
@@ -44,6 +47,7 @@ public class Enemy : MonoBehaviour
     private void Awake()
     {
         levelManager = FindFirstObjectByType<LevelManager>();
+        eventManager = Resources.Load<EventManagerSO>("EventManager");
 
         agent = GetComponent<NavMeshAgent>();
 
@@ -238,7 +242,7 @@ public class Enemy : MonoBehaviour
         if (damageTimer >= damageDelay)
         {
             // Are we close to the player
-            if (Vector3.Distance(transform.position, chaseTarget.position) < 2f)
+            if (Vector3.Distance(transform.position, chaseTarget.position) < meleeRange)
             {
                 if (playerDamageableComponent)
                 {
@@ -277,17 +281,20 @@ public class Enemy : MonoBehaviour
         // If health drops below zero...
         if (currentHealth <= 0)
         {
+            if (eventManager != null) eventManager.EnemyDefeated(scoreValue);
             Destroy(this.gameObject); // enemy perishes
+            return;
         }
 
         // If health bar is disabled, enable it
-        if (!healthBar.gameObject.activeSelf)
+        if (healthBar != null && !healthBar.gameObject.activeSelf)
         {
             healthBar.gameObject.SetActive(true);
         }
 
         // Update health bar
-        healthBar.UpdateHealthBar(currentHealth, maxHealth);
+        if (healthBar != null)
+            healthBar.UpdateHealthBar(currentHealth, maxHealth);
     }
 
 }
