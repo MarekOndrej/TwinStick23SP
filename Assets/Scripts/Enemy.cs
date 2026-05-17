@@ -25,6 +25,10 @@ public class Enemy : MonoBehaviour
     [Tooltip("Optional VFX prefab spawned at the enemy's position when it dies. " +
              "Leave empty to load 'Assets/Resources/DeathPuff.prefab' automatically.")]
     [SerializeField] GameObject deathVfxPrefab;
+    [Tooltip("How long the knockback lerp takes (seconds).")]
+    [SerializeField] float knockbackDuration = 0.12f;
+
+    Coroutine _knockbackRoutine;
 
     Renderer[] _renderers;
     MaterialPropertyBlock _propertyBlock;
@@ -302,8 +306,6 @@ public class Enemy : MonoBehaviour
 
     public void TakeDamage(float incomingDamage)
     {
-        // TODO: Add knock back effect
-
         // Reduce damage from our current health
         currentHealth -= incomingDamage;
 
@@ -392,6 +394,59 @@ public class Enemy : MonoBehaviour
         // Spawn slightly above ground so the puff isn't half buried.
         var pos = transform.position + Vector3.up * 0.5f;
         Instantiate(deathVfxPrefab, pos, Quaternion.identity);
+    }
+
+    // === Knockback ===
+
+    public void ApplyKnockback(Vector3 worldDirection, float distance)
+    {
+        if (this == null || !gameObject.activeInHierarchy) return;
+        if (distance <= 0f) return;
+
+        // Ignore vertical component — we're a NavMesh agent on flat ground.
+        worldDirection.y = 0f;
+        if (worldDirection.sqrMagnitude < 0.0001f) return;
+
+        if (_knockbackRoutine != null) StopCoroutine(_knockbackRoutine);
+        _knockbackRoutine = StartCoroutine(KnockbackRoutine(worldDirection.normalized, distance));
+    }
+
+    private IEnumerator KnockbackRoutine(Vector3 dir, float distance)
+    {
+        // Pause NavMeshAgent driving the transform; we'll move it ourselves.
+        bool hadAgent = agent != null && agent.enabled;
+        if (hadAgent)
+        {
+            agent.isStopped = true;
+            agent.updatePosition = false;
+            agent.updateRotation = false;
+        }
+
+        Vector3 startPos = transform.position;
+        Vector3 endPos = startPos + dir * distance;
+
+        float elapsed = 0f;
+        while (elapsed < knockbackDuration)
+        {
+            elapsed += Time.deltaTime;
+            float k = Mathf.Clamp01(elapsed / knockbackDuration);
+            // Ease-out cubic: fast at the start, decelerates to a stop.
+            float eased = 1f - Mathf.Pow(1f - k, 3f);
+            transform.position = Vector3.Lerp(startPos, endPos, eased);
+            yield return null;
+        }
+
+        // Re-anchor the NavMeshAgent at the new position so its internal state
+        // doesn't drag us back along the old path.
+        if (hadAgent)
+        {
+            if (agent.isOnNavMesh) agent.Warp(transform.position);
+            agent.updatePosition = true;
+            agent.updateRotation = true;
+            agent.isStopped = false;
+        }
+
+        _knockbackRoutine = null;
     }
 
 }

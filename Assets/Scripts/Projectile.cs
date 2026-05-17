@@ -12,6 +12,8 @@ public class Projectile : MonoBehaviour
     [SerializeField] int maxBounce = 2;
     [SerializeField] float maxLife = 5f;
     [SerializeField] float damage = 2;
+    [Tooltip("How far back the enemy is pushed when hit (world units).")]
+    [SerializeField] float knockbackDistance = 0.8f;
 
     [SerializeField] LayerMask damageableLayers;
 
@@ -53,6 +55,14 @@ public class Projectile : MonoBehaviour
             if (other.TryGetComponent<Enemy>(out Enemy detectedEnemy))
             {
                 detectedEnemy.TakeDamage(damage);
+
+                // Knock the enemy back along the projectile's travel direction.
+                // Use previousVelocity because by this frame rb.linearVelocity may
+                // already reflect the trigger collision response.
+                Vector3 dir = previousVelocity.sqrMagnitude > 0.01f
+                    ? previousVelocity
+                    : transform.forward;
+                detectedEnemy.ApplyKnockback(dir, knockbackDistance);
             }
         }
 
