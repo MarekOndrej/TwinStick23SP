@@ -189,7 +189,7 @@ MonoBehaviour:
   healthBar: {fileID: 1960194027739420822}
   maxHealth: 20
   scoreValue: 10
-  hitFlashColor: {r: 0.5, g: 1, b: 1, a: 1}
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
   hitFlashDuration: 0.08
   deathVfxPrefab: {fileID: 0}
   knockbackDuration: 0.12

@@ -34,7 +34,15 @@ public class Enemy : MonoBehaviour
              "the wave can clear).")]
     [SerializeField] float outOfBoundsYThreshold = -3f;
     [SerializeField] float outOfBoundsTimeout = 1.5f;
+    [Tooltip("How long after spawn the OOB check is suppressed. Gives the " +
+             "NavMeshAgent time to attach to the navmesh before we'd otherwise " +
+             "interpret 'not attached yet' as 'fell off the arena'.")]
+    [SerializeField] float outOfBoundsGracePeriod = 1.5f;
+    [Tooltip("How close the enemy has to be to a navmesh surface to be " +
+             "considered 'on the arena'. Anything further is OOB.")]
+    [SerializeField] float outOfBoundsSampleRadius = 1.5f;
     float _oobTimer;
+    float _spawnedAt;
 
     Coroutine _knockbackRoutine;
 
@@ -98,6 +106,8 @@ public class Enemy : MonoBehaviour
         eventManager = Resources.Load<EventManagerSO>("EventManager");
 
         agent = GetComponent<NavMeshAgent>();
+
+        _spawnedAt = Time.time;
 
         // set current health to max
         currentHealth = maxHealth;
@@ -532,10 +542,28 @@ public class Enemy : MonoBehaviour
     // True if the enemy fell below the world floor OR ended up off the navmesh
     // (e.g. after a knockback pushed them off a platform). Either way they're
     // not coming back, so we should remove them.
+    //
+    // Notes on the navmesh check:
+    //   - A spawn grace period suppresses the check entirely so the agent has
+    //     time to attach to the navmesh after Awake.
+    //   - We use NavMesh.SamplePosition (with a tolerant radius) rather than
+    //     agent.isOnNavMesh because the latter can return false transiently
+    //     during knockback Warp() or right after instantiation, even when the
+    //     enemy is geographically on the arena.
     private bool IsOutOfBounds()
     {
+        if (Time.time - _spawnedAt < outOfBoundsGracePeriod) return false;
+
         if (transform.position.y < outOfBoundsYThreshold) return true;
-        if (agent != null && agent.enabled && !agent.isOnNavMesh) return true;
+
+        if (agent != null && agent.enabled)
+        {
+            if (!NavMesh.SamplePosition(transform.position, out _,
+                outOfBoundsSampleRadius, NavMesh.AllAreas))
+            {
+                return true;
+            }
+        }
         return false;
     }
 

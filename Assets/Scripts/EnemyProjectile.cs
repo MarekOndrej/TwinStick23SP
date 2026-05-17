@@ -55,11 +55,18 @@ public class EnemyProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        // Ignore other enemies — the projectile spawns 0.6u in front of the
+        // shooter's chest, which may overlap the shooter's own collider for a
+        // frame; without this we'd despawn instantly and never hit the player.
+        // Also nice side effect: ranged enemies can't friendly-fire each other.
+        if (other.GetComponentInParent<Enemy>() != null) return;
+
         if (other.TryGetComponent<Damageable>(out Damageable target))
         {
             target.ReceiveDamage(damage);
         }
-        // Despawn on any collision so the shot doesn't sail through walls.
+        // Despawn on any other collision (walls, player, etc.) so the shot
+        // doesn't sail through geometry.
         Destroy(gameObject);
     }
 
