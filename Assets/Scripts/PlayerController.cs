@@ -22,10 +22,16 @@ public class PlayerController : MonoBehaviour
     Vector3 recoilVelocity;
     [SerializeField] float recoverySpeed = 8f;
 
+    [Header("Fall death")]
+    [Tooltip("If the player's Y drops below this for fallDeathDelay seconds, they die.")]
+    [SerializeField] float fallDeathYThreshold = -5f;
+    [SerializeField] float fallDeathDelay = 3f;
+    float fallTimer;
 
     //managers
     LevelManager levelManager;
     EventManagerSO eventManager;
+    Damageable damageable;
 
     // Input System action handles
     InputAction moveAction;
@@ -35,6 +41,7 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
+        damageable = GetComponent<Damageable>();
         levelManager = FindFirstObjectByType<LevelManager>();
         eventManager = Resources.Load<EventManagerSO>("EventManager");
 
@@ -92,6 +99,23 @@ public class PlayerController : MonoBehaviour
             eventManager.GamePaused();
             if (gun != null) gun.WantsToFire = false;
             return;
+        }
+
+        // Fall-death: if the player falls below the arena for fallDeathDelay
+        // seconds, deal lethal damage so the normal game-over flow fires.
+        if (transform.position.y < fallDeathYThreshold)
+        {
+            fallTimer += Time.deltaTime;
+            if (fallTimer >= fallDeathDelay)
+            {
+                fallTimer = 0f;
+                if (damageable != null) damageable.ReceiveDamage(float.MaxValue);
+                return;
+            }
+        }
+        else
+        {
+            fallTimer = 0f;
         }
 
         // Movement input
