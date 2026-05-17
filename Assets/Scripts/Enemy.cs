@@ -28,6 +28,14 @@ public class Enemy : MonoBehaviour
     [Tooltip("How long the knockback lerp takes (seconds).")]
     [SerializeField] float knockbackDuration = 0.12f;
 
+    [Header("Out-of-bounds self-destruct")]
+    [Tooltip("If the enemy is knocked off the navmesh OR falls below this Y, " +
+             "it self-destructs after the timeout (and counts as a kill so " +
+             "the wave can clear).")]
+    [SerializeField] float outOfBoundsYThreshold = -3f;
+    [SerializeField] float outOfBoundsTimeout = 1.5f;
+    float _oobTimer;
+
     Coroutine _knockbackRoutine;
 
     Renderer[] _renderers;
@@ -43,6 +51,25 @@ public class Enemy : MonoBehaviour
     [SerializeField] float meleeRange = 2f;
     float damageTimer;
     Damageable playerDamageableComponent;
+
+    [Header("Ranged attack (only for shooter enemies)")]
+    [Tooltip("If true, this enemy fires projectiles at the player at close-ish " +
+             "range instead of melee-attacking.")]
+    [SerializeField] bool useRangedAttack = false;
+    [Tooltip("Projectile prefab to instantiate when shooting. If null, falls " +
+             "back to Resources/EnemyProjectile.prefab.")]
+    [SerializeField] GameObject rangedProjectilePrefab;
+    [Tooltip("Local-space offset where the projectile spawns (relative to enemy).")]
+    [SerializeField] Vector3 rangedFiringOffset = new Vector3(0f, 1f, 0.5f);
+    [Tooltip("Maximum distance at which this enemy will choose to shoot " +
+             "(it'll close in if the player is farther).")]
+    [SerializeField] float rangedAttackRange = 5f;
+    [Tooltip("Stop and shoot when within this many units (avoids walking into " +
+             "the player to melee them). Should be < rangedAttackRange.")]
+    [SerializeField] float rangedStopDistance = 3.5f;
+    [Tooltip("Seconds between successive shots.")]
+    [SerializeField] float rangedAttackInterval = 1.4f;
+    float _rangedAttackTimer;
 
     [Header("Roaming")]
     [SerializeField] float roamRadius = 8f;
@@ -90,6 +117,13 @@ public class Enemy : MonoBehaviour
             deathVfxPrefab = Resources.Load<GameObject>("DeathPuff");
         }
 
+        // Same fallback for the ranged projectile so ranged enemies don't need
+        // an inspector reference if they're happy with the default visual.
+        if (useRangedAttack && rangedProjectilePrefab == null)
+        {
+            rangedProjectilePrefab = Resources.Load<GameObject>("EnemyProjectile");
+        }
+
         // Enemies are ready to attack as soon as they are born
         damageTimer = damageDelay;
 
@@ -105,6 +139,26 @@ public class Enemy : MonoBehaviour
         {
             agent.isStopped = true;
             return; // nothing else to do here
+        }
+
+        // Out-of-bounds: if the enemy got knocked off the arena (or fell into
+        // a pit), the NavMeshAgent won't apply gravity so they'd hang in mid-air
+        // forever. Worse, _aliveThisWave on the spawner never decrements and
+        // the next wave never starts. Self-destruct + raise EnemyDefeated so
+        // the wave clears cleanly. Knockback routine sets a brief grace period
+        // by not running this check (it's paused via early return below).
+        if (IsOutOfBounds())
+        {
+            _oobTimer += Time.deltaTime;
+            if (_oobTimer >= outOfBoundsTimeout)
+            {
+                KillSelf();
+                return;
+            }
+        }
+        else
+        {
+            _oobTimer = 0f;
         }
 
         // Respond to game state
@@ -261,6 +315,18 @@ public class Enemy : MonoBehaviour
 
     private void ChaseAndAttack()
     {
+        if (useRangedAttack && rangedProjectilePrefab != null)
+        {
+            ChaseAndShoot();
+        }
+        else
+        {
+            ChaseAndMelee();
+        }
+    }
+
+    private void ChaseAndMelee()
+    {
         // Make sure agent is mobile
         agent.isStopped = false;
 
@@ -286,6 +352,65 @@ public class Enemy : MonoBehaviour
             // Reset timer
             damageTimer = 0;
         }
+    }
+
+    private void ChaseAndShoot()
+    {
+        float distance = Vector3.Distance(transform.position, chaseTarget.position);
+
+        if (distance > rangedAttackRange)
+        {
+            // Out of shooting range — close in.
+            agent.isStopped = false;
+            agent.destination = chaseTarget.position;
+            return;
+        }
+
+        // In shooting range. Stop and face the target, then fire on cadence.
+        agent.isStopped = true;
+
+        // Stop short of the stop distance so we don't walk into the player.
+        if (distance > rangedStopDistance)
+        {
+            agent.isStopped = false;
+            agent.destination = chaseTarget.position;
+        }
+
+        // Face the player.
+        Vector3 toTarget = chaseTarget.position - transform.position;
+        toTarget.y = 0f;
+        if (toTarget.sqrMagnitude > 0.0001f)
+        {
+            transform.rotation = Quaternion.LookRotation(toTarget);
+        }
+
+        _rangedAttackTimer += Time.deltaTime;
+        if (_rangedAttackTimer >= rangedAttackInterval)
+        {
+            _rangedAttackTimer = 0f;
+            FireRangedProjectile();
+        }
+    }
+
+    private void FireRangedProjectile()
+    {
+        if (rangedProjectilePrefab == null) return;
+
+        // Spawn the projectile at the firing offset, oriented at the player.
+        Vector3 spawnPos = transform.position
+            + transform.right * rangedFiringOffset.x
+            + Vector3.up * rangedFiringOffset.y
+            + transform.forward * rangedFiringOffset.z;
+
+        Quaternion rot = transform.rotation;
+        if (chaseTarget != null)
+        {
+            Vector3 aim = chaseTarget.position - spawnPos;
+            aim.y = 0f;
+            if (aim.sqrMagnitude > 0.0001f) rot = Quaternion.LookRotation(aim);
+        }
+
+        Instantiate(rangedProjectilePrefab, spawnPos, rot);
     }
 
     public void SetChaseTarget(Transform newChaseTarget)
@@ -315,9 +440,7 @@ public class Enemy : MonoBehaviour
         // If health drops below zero...
         if (currentHealth <= 0)
         {
-            if (eventManager != null) eventManager.EnemyDefeated(scoreValue);
-            SpawnDeathVfx();
-            Destroy(this.gameObject); // enemy perishes
+            KillSelf();
             return;
         }
 
@@ -394,6 +517,26 @@ public class Enemy : MonoBehaviour
         // Spawn slightly above ground so the puff isn't half buried.
         var pos = transform.position + Vector3.up * 0.5f;
         Instantiate(deathVfxPrefab, pos, Quaternion.identity);
+    }
+
+    // Common death path. Used by both the damage->zero branch and the
+    // out-of-bounds self-destruct branch so the wave-tracking event always
+    // fires (and the death VFX always plays).
+    private void KillSelf()
+    {
+        if (eventManager != null) eventManager.EnemyDefeated(scoreValue);
+        SpawnDeathVfx();
+        Destroy(this.gameObject);
+    }
+
+    // True if the enemy fell below the world floor OR ended up off the navmesh
+    // (e.g. after a knockback pushed them off a platform). Either way they're
+    // not coming back, so we should remove them.
+    private bool IsOutOfBounds()
+    {
+        if (transform.position.y < outOfBoundsYThreshold) return true;
+        if (agent != null && agent.enabled && !agent.isOnNavMesh) return true;
+        return false;
     }
 
     // === Knockback ===

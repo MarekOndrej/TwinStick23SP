@@ -185,10 +185,29 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   chaseTarget: {fileID: 0}
+  aggroDistance: 8
   healthBar: {fileID: 1960194027739420822}
   maxHealth: 20
-  currentHealth: 10
-  isRanged: 0
+  scoreValue: 10
+  hitFlashColor: {r: 0.5, g: 1, b: 1, a: 1}
+  hitFlashDuration: 0.08
+  deathVfxPrefab: {fileID: 0}
+  knockbackDuration: 0.12
+  outOfBoundsYThreshold: -3
+  outOfBoundsTimeout: 1.5
+  damageAmount: 5
+  damageDelay: 1
+  meleeRange: 2
+  useRangedAttack: 1
+  rangedProjectilePrefab: {fileID: 3352226851636406574, guid: cf3e63c63f17a1149ba85158f6771a9b, type: 3}
+  rangedFiringOffset: {x: 0, y: 1, z: 0.6}
+  rangedAttackRange: 6
+  rangedStopDistance: 4
+  rangedAttackInterval: 1.4
+  roamRadius: 8
+  roamMinAcceptableDistance: 1.2
+  roamMinMoveDistance: 3
+  roamWaitTime: 1.5
 --- !u!136 &4522122819673901994
 CapsuleCollider:
   m_ObjectHideFlags: 0
