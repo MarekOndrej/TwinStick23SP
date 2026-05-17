@@ -8,6 +8,7 @@ public class InGameUIManager : MonoBehaviour
     [SerializeField] GameObject hudScreen;
     [SerializeField] HealthBar healthBar;
     [SerializeField] TMP_Text scoreLabel;
+    [SerializeField] TMP_Text waveLabel;
 
     [Header("Pause Screen")]
     [SerializeField] GameObject pauseScreen;
@@ -39,6 +40,8 @@ public class InGameUIManager : MonoBehaviour
         eventManager.onGamePaused += PauseGame;
         eventManager.onGameResumed += ResumeGame;
         eventManager.onScoreChanged += HandleScoreChanged;
+        eventManager.onWaveStarted += HandleWaveStarted;
+        eventManager.onWaveCleared += HandleWaveCleared;
 
         if (pauseResumeButton != null) pauseResumeButton.onClick.AddListener(OnResumeClicked);
         if (pauseMainMenuButton != null) pauseMainMenuButton.onClick.AddListener(OnQuitToMenuClicked);
@@ -53,6 +56,8 @@ public class InGameUIManager : MonoBehaviour
         eventManager.onGamePaused -= PauseGame;
         eventManager.onGameResumed -= ResumeGame;
         eventManager.onScoreChanged -= HandleScoreChanged;
+        eventManager.onWaveStarted -= HandleWaveStarted;
+        eventManager.onWaveCleared -= HandleWaveCleared;
 
         if (pauseResumeButton != null) pauseResumeButton.onClick.RemoveListener(OnResumeClicked);
         if (pauseMainMenuButton != null) pauseMainMenuButton.onClick.RemoveListener(OnQuitToMenuClicked);
@@ -76,6 +81,16 @@ public class InGameUIManager : MonoBehaviour
     private void HandleScoreChanged(int newScore)
     {
         if (scoreLabel != null) scoreLabel.text = $"Score: {newScore}";
+    }
+
+    private void HandleWaveStarted(int waveNumber)
+    {
+        if (waveLabel != null) waveLabel.text = $"Wave {waveNumber}";
+    }
+
+    private void HandleWaveCleared(int waveNumber)
+    {
+        if (waveLabel != null) waveLabel.text = $"Wave {waveNumber} cleared!";
     }
 
     private void RefreshScoreLabel()

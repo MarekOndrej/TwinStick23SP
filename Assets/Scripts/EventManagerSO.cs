@@ -18,6 +18,9 @@ public class EventManagerSO : ScriptableObject
     public event Action onGunFired;
     public event Action<int> onEnemyDefeated;
     public event Action<int> onScoreChanged;
+    public event Action<int> onWaveStarted;
+    public event Action<int> onWaveCleared;
+    public event Action onAllWavesCleared;
 
 
     // == Methods (sending of messages) ==
@@ -63,6 +66,24 @@ public class EventManagerSO : ScriptableObject
         onScoreChanged?.Invoke(newScore);
     }
 
+    public void WaveStarted(int waveNumber)
+    {
+        Debug.Log($"Wave {waveNumber} started!");
+        onWaveStarted?.Invoke(waveNumber);
+    }
+
+    public void WaveCleared(int waveNumber)
+    {
+        Debug.Log($"Wave {waveNumber} cleared!");
+        onWaveCleared?.Invoke(waveNumber);
+    }
+
+    public void AllWavesCleared()
+    {
+        Debug.Log("All waves cleared!");
+        onAllWavesCleared?.Invoke();
+    }
+
     // Clear all event delegates. Useful because ScriptableObject state can survive
     // between play-mode sessions when Domain Reload is disabled — stale subscribers
     // would otherwise be invoked and NRE.
@@ -76,6 +97,9 @@ public class EventManagerSO : ScriptableObject
         onGunFired = null;
         onEnemyDefeated = null;
         onScoreChanged = null;
+        onWaveStarted = null;
+        onWaveCleared = null;
+        onAllWavesCleared = null;
     }
 
     // Runs once at the start of every play session, before any scene loads.
