@@ -9,7 +9,8 @@ using UnityEngine;
 //     setup that's just the player. (Enemies don't have Damageable; they have
 //     Enemy with its own TakeDamage signature.)
 //   - Pause-aware, matching Projectile.cs.
-public class EnemyProjectile : MonoBehaviour
+//   - Pool-aware via IPoolable.
+public class EnemyProjectile : MonoBehaviour, IPoolable
 {
     Rigidbody rb;
     Vector3 previousVelocity;
@@ -23,6 +24,7 @@ public class EnemyProjectile : MonoBehaviour
 
     LevelManager levelManager;
     EventManagerSO eventManager;
+    PrefabPool _pool;
 
     private void Awake()
     {
@@ -31,12 +33,17 @@ public class EnemyProjectile : MonoBehaviour
         eventManager = Resources.Load<EventManagerSO>("EventManager");
     }
 
+    public void OnTakenFromPool(PrefabPool pool)
+    {
+        _pool = pool;
+        ResetForFlight();
+        LaunchForward();
+    }
+
     private void Start()
     {
-        if (rb != null)
-        {
-            rb.AddForce(transform.forward * speed, ForceMode.VelocityChange);
-        }
+        // Non-pooled path. If pooled, OnTakenFromPool fires LaunchForward instead.
+        if (_pool == null) LaunchForward();
     }
 
     private void OnEnable()
@@ -67,7 +74,7 @@ public class EnemyProjectile : MonoBehaviour
         }
         // Despawn on any other collision (walls, player, etc.) so the shot
         // doesn't sail through geometry.
-        Destroy(gameObject);
+        Despawn();
     }
 
     private void Update()
@@ -77,7 +84,7 @@ public class EnemyProjectile : MonoBehaviour
         timeAlive += Time.deltaTime;
         if (timeAlive > maxLife)
         {
-            Destroy(gameObject);
+            Despawn();
             return;
         }
 
@@ -94,5 +101,29 @@ public class EnemyProjectile : MonoBehaviour
         if (rb == null) return;
         rb.isKinematic = false;
         rb.linearVelocity = previousVelocity;
+    }
+
+    private void ResetForFlight()
+    {
+        timeAlive = 0f;
+        previousVelocity = Vector3.zero;
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private void LaunchForward()
+    {
+        if (rb == null) return;
+        rb.AddForce(transform.forward * speed, ForceMode.VelocityChange);
+    }
+
+    private void Despawn()
+    {
+        if (_pool != null) _pool.Release(gameObject);
+        else Destroy(gameObject);
     }
 }

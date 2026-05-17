@@ -1,7 +1,7 @@
 using UnityEngine;
 
-public class Projectile : MonoBehaviour
-{ 
+public class Projectile : MonoBehaviour, IPoolable
+{
 
     Rigidbody rb;
 
@@ -22,6 +22,7 @@ public class Projectile : MonoBehaviour
 
     LevelManager levelManager;
     EventManagerSO eventManager;
+    PrefabPool _pool;
 
     private void Awake()
     {
@@ -30,21 +31,41 @@ public class Projectile : MonoBehaviour
         eventManager = Resources.Load<EventManagerSO>("EventManager");
     }
 
-
-    private void Start()
+    // Called by PrefabPool each time the projectile is fetched from the pool.
+    // (Not called when instantiated directly — for that path, OnEnable handles
+    // first-fire init via the same LaunchForward() helper below.)
+    public void OnTakenFromPool(PrefabPool pool)
     {
-        rb.AddForce(transform.forward * velocity, ForceMode.Impulse);
+        _pool = pool;
+        ResetForFlight();
+        LaunchForward();
     }
 
     private void OnEnable()
     {
-        eventManager.onGamePaused += Pause;
-        eventManager.onGameResumed += Resume;
+        if (eventManager != null)
+        {
+            eventManager.onGamePaused += Pause;
+            eventManager.onGameResumed += Resume;
+        }
     }
+
     private void OnDisable()
     {
-        eventManager.onGamePaused -= Pause;
-        eventManager.onGameResumed -= Resume;
+        if (eventManager != null)
+        {
+            eventManager.onGamePaused -= Pause;
+            eventManager.onGameResumed -= Resume;
+        }
+    }
+
+    private void Start()
+    {
+        // First-time instantiation (non-pooled path): apply initial force here.
+        // For pooled spawns, OnTakenFromPool runs after Awake/OnEnable on the
+        // first Get and calls LaunchForward instead. Either way the projectile
+        // moves on its first frame.
+        if (_pool == null) LaunchForward();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -69,12 +90,13 @@ public class Projectile : MonoBehaviour
         bounceCounter++;
         if (bounceCounter >= maxBounce)
         {
-            Destroy(this.gameObject);
+            Despawn();
         }
     }
+
     private void Update()
     {
-        if(levelManager.CurrentGameState == GameState.paused)
+        if (levelManager != null && levelManager.CurrentGameState == GameState.paused)
         {
             return;
         }
@@ -83,18 +105,54 @@ public class Projectile : MonoBehaviour
 
         if (timeAlive > maxLife)
         {
-            Destroy(this.gameObject);
+            Despawn();
+            return;
         }
-        previousVelocity = rb.linearVelocity;
+
+        if (rb != null) previousVelocity = rb.linearVelocity;
     }
 
     private void Pause()
     {
-        rb.isKinematic = true;
+        if (rb != null) rb.isKinematic = true;
     }
+
     private void Resume()
     {
+        if (rb == null) return;
         rb.isKinematic = false;
         rb.linearVelocity = previousVelocity;
+    }
+
+    private void ResetForFlight()
+    {
+        timeAlive = 0f;
+        bounceCounter = 0;
+        previousVelocity = Vector3.zero;
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private void LaunchForward()
+    {
+        if (rb == null) return;
+        rb.AddForce(transform.forward * velocity, ForceMode.Impulse);
+    }
+
+    // Return to pool if we came from one, otherwise destroy.
+    private void Despawn()
+    {
+        if (_pool != null)
+        {
+            _pool.Release(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 }

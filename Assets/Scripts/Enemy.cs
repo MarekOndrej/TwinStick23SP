@@ -420,7 +420,11 @@ public class Enemy : MonoBehaviour
             if (aim.sqrMagnitude > 0.0001f) rot = Quaternion.LookRotation(aim);
         }
 
-        Instantiate(rangedProjectilePrefab, spawnPos, rot);
+        // Pool the projectile so a wave of ranged enemies firing every 1.4s
+        // doesn't churn GC. Falls back to Instantiate if pool unavailable.
+        var pool = PrefabPool.For(rangedProjectilePrefab);
+        if (pool != null) pool.Get(spawnPos, rot);
+        else Instantiate(rangedProjectilePrefab, spawnPos, rot);
     }
 
     public void SetChaseTarget(Transform newChaseTarget)

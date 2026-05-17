@@ -36,7 +36,18 @@ public class Gun : MonoBehaviour
     {
         if (projectile == null || firingPoint == null) return;
 
-        Instantiate(projectile, firingPoint.position, firingPoint.rotation);
+        // Use the per-prefab pool. PrefabPool.For lazily creates a pool for
+        // this projectile prefab on first use; subsequent shots reuse instances
+        // instead of churning Instantiate/Destroy.
+        var pool = PrefabPool.For(projectile.gameObject);
+        if (pool != null)
+        {
+            pool.Get(firingPoint.position, firingPoint.rotation);
+        }
+        else
+        {
+            Instantiate(projectile, firingPoint.position, firingPoint.rotation);
+        }
 
         // Notify listeners (player recoil, audio, muzzle FX, etc.)
         if (eventManager != null) eventManager.GunFired();
