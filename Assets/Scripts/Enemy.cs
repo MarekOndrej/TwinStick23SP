@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -15,6 +16,22 @@ public class Enemy : MonoBehaviour
     [SerializeField] int scoreValue = 10;
     float currentHealth;
     EventManagerSO eventManager;
+
+    [Header("Hit feedback")]
+    [Tooltip("Color the enemy flashes to when hit.")]
+    [SerializeField] Color hitFlashColor = new Color(1f, 0.92f, 0.3f, 1f);
+    [Tooltip("How long the flash lasts before reverting.")]
+    [SerializeField] float hitFlashDuration = 0.08f;
+    [Tooltip("Optional VFX prefab spawned at the enemy's position when it dies. " +
+             "Leave empty to load 'Assets/Resources/DeathPuff.prefab' automatically.")]
+    [SerializeField] GameObject deathVfxPrefab;
+
+    Renderer[] _renderers;
+    MaterialPropertyBlock _propertyBlock;
+    Color[] _originalColors;
+    Coroutine _flashRoutine;
+    static readonly int _BaseColorID = Shader.PropertyToID("_BaseColor");
+    static readonly int _ColorID = Shader.PropertyToID("_Color");
 
     [Header("Damage related")]
     [SerializeField] float damageAmount = 5f;
@@ -56,6 +73,18 @@ public class Enemy : MonoBehaviour
 
         // disable health bar
         healthBar.gameObject.SetActive(false);
+
+        // Cache renderers for hit-flash, and remember original colors so we
+        // can restore them after the flash. Uses MaterialPropertyBlock to
+        // avoid creating per-instance material clones (preserves batching).
+        InitHitFlash();
+
+        // Fallback: if no death VFX was assigned in the prefab, try to load one
+        // from Resources so a single asset can be shared by all enemies.
+        if (deathVfxPrefab == null)
+        {
+            deathVfxPrefab = Resources.Load<GameObject>("DeathPuff");
+        }
 
         // Enemies are ready to attack as soon as they are born
         damageTimer = damageDelay;
@@ -278,10 +307,14 @@ public class Enemy : MonoBehaviour
         // Reduce damage from our current health
         currentHealth -= incomingDamage;
 
+        // Brief color flash to register the hit visually
+        Flash();
+
         // If health drops below zero...
         if (currentHealth <= 0)
         {
             if (eventManager != null) eventManager.EnemyDefeated(scoreValue);
+            SpawnDeathVfx();
             Destroy(this.gameObject); // enemy perishes
             return;
         }
@@ -295,6 +328,70 @@ public class Enemy : MonoBehaviour
         // Update health bar
         if (healthBar != null)
             healthBar.UpdateHealthBar(currentHealth, maxHealth);
+    }
+
+    // === Hit feedback ===
+
+    private void InitHitFlash()
+    {
+        _renderers = GetComponentsInChildren<Renderer>(includeInactive: false);
+        _propertyBlock = new MaterialPropertyBlock();
+        _originalColors = new Color[_renderers.Length];
+
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            var mat = _renderers[i].sharedMaterial;
+            if (mat == null) { _originalColors[i] = Color.white; continue; }
+
+            if (mat.HasProperty(_BaseColorID))
+                _originalColors[i] = mat.GetColor(_BaseColorID);
+            else if (mat.HasProperty(_ColorID))
+                _originalColors[i] = mat.GetColor(_ColorID);
+            else
+                _originalColors[i] = Color.white;
+        }
+    }
+
+    private void Flash()
+    {
+        if (_renderers == null || _renderers.Length == 0) return;
+        if (_flashRoutine != null) StopCoroutine(_flashRoutine);
+        _flashRoutine = StartCoroutine(FlashRoutine());
+    }
+
+    private IEnumerator FlashRoutine()
+    {
+        ApplyColor(hitFlashColor, useOverride: true);
+        yield return new WaitForSeconds(hitFlashDuration);
+        ApplyColor(default, useOverride: false); // restore originals
+        _flashRoutine = null;
+    }
+
+    private void ApplyColor(Color overrideColor, bool useOverride)
+    {
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            var r = _renderers[i];
+            if (r == null) continue;
+
+            r.GetPropertyBlock(_propertyBlock);
+            Color c = useOverride ? overrideColor : _originalColors[i];
+
+            if (r.sharedMaterial != null && r.sharedMaterial.HasProperty(_BaseColorID))
+                _propertyBlock.SetColor(_BaseColorID, c);
+            if (r.sharedMaterial != null && r.sharedMaterial.HasProperty(_ColorID))
+                _propertyBlock.SetColor(_ColorID, c);
+
+            r.SetPropertyBlock(_propertyBlock);
+        }
+    }
+
+    private void SpawnDeathVfx()
+    {
+        if (deathVfxPrefab == null) return;
+        // Spawn slightly above ground so the puff isn't half buried.
+        var pos = transform.position + Vector3.up * 0.5f;
+        Instantiate(deathVfxPrefab, pos, Quaternion.identity);
     }
 
 }

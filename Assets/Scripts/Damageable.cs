@@ -1,3 +1,4 @@
+using Unity.Cinemachine;
 using UnityEngine;
 
 public class Damageable : MonoBehaviour
@@ -8,10 +9,14 @@ public class Damageable : MonoBehaviour
     bool isDead;
 
     EventManagerSO eventManager;
+    CinemachineImpulseSource impulseSource;
 
     private void Awake()
     {
         eventManager = Resources.Load<EventManagerSO>("EventManager");
+        // Optional: if a CinemachineImpulseSource is attached to this GameObject,
+        // we'll fire an impulse on each hit (screen shake via the camera's listener).
+        impulseSource = GetComponent<CinemachineImpulseSource>();
     }
 
     private void Start()
@@ -28,6 +33,9 @@ public class Damageable : MonoBehaviour
         currentHealth -= damageAmount;
 
         eventManager.PlayerHealthChanged(currentHealth, maxHealth);
+
+        // Screen shake on hit (no-op if no source is attached).
+        if (impulseSource != null) impulseSource.GenerateImpulse();
 
         // if health drops to zero or below
         if (currentHealth <= 0)
