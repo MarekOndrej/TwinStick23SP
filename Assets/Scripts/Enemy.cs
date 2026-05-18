@@ -265,9 +265,19 @@ public class Enemy : MonoBehaviour
             case EnemyMode.chasing:
                 hasRoamTarget = false;
                 roamWaitTimer = 0f;
-                // Restore prefab stoppingDistance so melee enemies stop at a
-                // sensible distance before attacking.
-                if (agent != null) agent.stoppingDistance = _originalStoppingDistance;
+                // For melee enemies, agent.stoppingDistance MUST be inside
+                // meleeRange or the agent will halt out of attack reach and
+                // never damage the player. Prefab stoppingDistance (3.0) is
+                // larger than the default meleeRange (2.0), so without this
+                // clamp combat is broken. Ranged enemies don't care: their
+                // ChaseAndShoot routine controls stopping manually via
+                // isStopped, so we leave the prefab value alone for them.
+                if (agent != null)
+                {
+                    agent.stoppingDistance = useRangedAttack
+                        ? _originalStoppingDistance
+                        : Mathf.Max(0.1f, Mathf.Min(_originalStoppingDistance, meleeRange - 0.3f));
+                }
                 break;
 
             case EnemyMode.roaming:
