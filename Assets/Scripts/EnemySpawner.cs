@@ -24,6 +24,11 @@ public class EnemySpawner : MonoBehaviour
         [Tooltip("After all this wave's enemies are defeated, pause this many " +
                  "seconds before the next wave begins.")]
         [Min(0f)] public float restAfterWave = 4f;
+
+        [Tooltip("If >= 0, override the enemy prefab's sight range for enemies " +
+                 "spawned in this wave. Use to scale difficulty: early waves " +
+                 "with short LOS, later waves with long LOS. -1 = use prefab default.")]
+        public float sightRangeOverride = -1f;
     }
 
     [Header("Wave list")]
@@ -131,7 +136,7 @@ public class EnemySpawner : MonoBehaviour
                 eventManager.WaveStarted(waveDisplayNumber);
 
                 _aliveThisWave = 0;
-                yield return SpawnEnemies(wave.enemyPrefab, scaledCount, scaledInterval, possibleLocations);
+                yield return SpawnEnemies(wave.enemyPrefab, scaledCount, scaledInterval, possibleLocations, wave.sightRangeOverride);
 
                 // Wait for the wave to be fully defeated.
                 while (_aliveThisWave > 0)
@@ -155,7 +160,7 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    private IEnumerator SpawnEnemies(Enemy prefab, int count, float interval, List<Transform> locations)
+    private IEnumerator SpawnEnemies(Enemy prefab, int count, float interval, List<Transform> locations, float sightRangeOverride)
     {
         for (int i = 0; i < count; i++)
         {
@@ -168,6 +173,8 @@ public class EnemySpawner : MonoBehaviour
             var chosenSpawnPoint = locations[Random.Range(0, locations.Count)];
             var instance = Instantiate(prefab, chosenSpawnPoint.position, Quaternion.identity);
             instance.SetChaseTarget(chaseTarget);
+            // Apply per-wave sight range override (no-op when -1).
+            instance.SetSightRange(sightRangeOverride);
             _aliveThisWave++;
 
             if (i < count - 1)

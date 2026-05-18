@@ -1,13 +1,35 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Serialization;
 
 public class Enemy : MonoBehaviour
 {
 
     [Header("General settings")]
     [SerializeField] Transform chaseTarget;
-    [SerializeField] float aggroDistance = 8f;
+
+    [Tooltip("Maximum distance the enemy can see the player. The enemy must " +
+             "also have an unobstructed line of sight (raycast against world " +
+             "geometry) to actually 'spot' them. Once spotted, the enemy " +
+             "stays aggroed forever (or until aggroPersistence elapses with " +
+             "no fresh sight, if configured).")]
+    [FormerlySerializedAs("aggroDistance")]
+    [SerializeField] float sightRange = 6f;
+
+    [Tooltip("After losing line of sight, the enemy keeps chasing for this " +
+             "many seconds before reverting to roaming. 0 = lose aggro " +
+             "immediately. Use a high value (or -1 for forever) for a relentless feel.")]
+    [SerializeField] float aggroPersistence = -1f;
+
+    [Tooltip("Height above the enemy's transform origin from which the LOS " +
+             "raycast is cast (and toward the same height on the player). " +
+             "Avoids the raycast immediately hitting the floor.")]
+    [SerializeField] float sightEyeHeight = 1.0f;
+
+    bool _hasSpottedPlayer = false;
+    float _lastSawPlayerTime = -1f;
+
     NavMeshAgent agent;
 
     [Header("Health related")]
@@ -175,7 +197,7 @@ public class Enemy : MonoBehaviour
         switch (levelManager.CurrentGameState)
         {
             case GameState.running:
-                if (chaseTarget != null && Vector3.Distance(transform.position, chaseTarget.position) < aggroDistance)
+                if (chaseTarget != null && ShouldChase())
                 {
                     // change enemy mode to chasing
                     agent.isStopped = false;
@@ -325,6 +347,69 @@ public class Enemy : MonoBehaviour
 
         result = center;
         return false;
+    }
+
+    // === Line-of-sight aggro ===
+
+    // Returns true if the enemy should currently be chasing the player. Two
+    // ways to be chasing: actively seeing the player, or recently saw them
+    // and we're still inside the aggroPersistence window.
+    private bool ShouldChase()
+    {
+        if (CanSeePlayerNow())
+        {
+            _hasSpottedPlayer = true;
+            _lastSawPlayerTime = Time.time;
+            return true;
+        }
+
+        if (!_hasSpottedPlayer) return false;
+
+        if (aggroPersistence < 0f) return true; // relentless — never lose aggro
+        return Time.time - _lastSawPlayerTime <= aggroPersistence;
+    }
+
+    // Raycasts from the enemy's "eye" toward the player's chest. If the first
+    // collider hit is the player (or one of its children), there's a clear
+    // line of sight; otherwise something is between us.
+    private bool CanSeePlayerNow()
+    {
+        if (chaseTarget == null) return false;
+
+        Vector3 origin = transform.position + Vector3.up * sightEyeHeight;
+        Vector3 targetPoint = chaseTarget.position + Vector3.up * sightEyeHeight;
+        Vector3 toTarget = targetPoint - origin;
+        float distance = toTarget.magnitude;
+
+        if (distance > sightRange) return false;
+
+        Vector3 direction = toTarget / distance; // already > 0 since distance < sightRange or we returned
+
+        if (Physics.Raycast(origin, direction, out RaycastHit hit, sightRange))
+        {
+            Transform hitT = hit.collider.transform;
+            // Walk up the hierarchy looking for the chase target — covers cases
+            // where the raycast lands on a child collider (e.g., a separate
+            // body mesh under the player root).
+            while (hitT != null)
+            {
+                if (hitT == chaseTarget) return true;
+                hitT = hitT.parent;
+            }
+            return false;
+        }
+
+        // Nothing in the way at all — line is clear.
+        return true;
+    }
+
+    // Allows the spawner (or any external code) to vary sight range per-wave
+    // for difficulty scaling. Negative values are ignored so default per-prefab
+    // sight range survives if the override is left unset.
+    public void SetSightRange(float range)
+    {
+        if (range < 0f) return;
+        sightRange = range;
     }
 
     private void ChaseAndAttack()
