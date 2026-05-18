@@ -174,20 +174,40 @@ public class EnemySpawner : MonoBehaviour
             var chosenSpawnPoint = locations[Random.Range(0, locations.Count)];
             Vector3 spawnPos = chosenSpawnPoint.position;
 
-            // Snap to nearest navmesh point. The spawn-point Transforms might be
-            // placed slightly off the baked navmesh (Y offset, or past the bake
-            // boundary). If so, the spawned NavMeshAgent fails to bind and the
-            // enemy stands still forever. We search a generous 20-unit radius
-            // so even spawn points placed well outside the navmesh are recovered.
-            if (NavMesh.SamplePosition(spawnPos, out NavMeshHit navHit, 20f, NavMesh.AllAreas))
+            // Snap to the nearest navmesh point of the AGENT'S OWN TYPE.
+            // Critical detail: the scene has multiple NavMeshSurfaces with
+            // different AgentTypeIDs. NavMesh.SamplePosition without a filter
+            // would happily snap to any one of them — then Instantiate of an
+            // enemy with a Humanoid-type agent would fail to bind to a
+            // custom-type navmesh ("Failed to create agent because it is not
+            // close enough to the NavMesh"). Using NavMeshQueryFilter with the
+            // prefab's agent type makes the snap pick a navmesh the agent can
+            // actually use.
+            int agentTypeID = 0;
+            var prefabAgent = prefab.GetComponent<NavMeshAgent>();
+            if (prefabAgent != null) agentTypeID = prefabAgent.agentTypeID;
+
+            var filter = new NavMeshQueryFilter
             {
+                agentTypeID = agentTypeID,
+                areaMask = NavMesh.AllAreas,
+            };
+
+            if (NavMesh.SamplePosition(spawnPos, out NavMeshHit navHit, 50f, filter))
+            {
+                float snapDistance = Vector3.Distance(spawnPos, navHit.position);
+                if (snapDistance > 5f)
+                {
+                    Debug.LogWarning($"EnemySpawner: spawn point '{chosenSpawnPoint.name}' is {snapDistance:F1}u from the nearest navmesh of AgentTypeID {agentTypeID}. " +
+                                     $"Snapping to {navHit.position}. Consider re-baking the navmesh to cover the spawn area, or moving the spawn point.");
+                }
                 spawnPos = navHit.position;
             }
             else
             {
-                Debug.LogWarning($"EnemySpawner: no navmesh within 20u of spawn point '{chosenSpawnPoint.name}' at {chosenSpawnPoint.position}. " +
-                                 "Skipping this spawn. Re-bake the navmesh (Window > AI > Navigation) so it covers the spawn points, " +
-                                 "or move the spawn points onto the walkable area.");
+                Debug.LogWarning($"EnemySpawner: no navmesh of AgentTypeID {agentTypeID} within 50u of spawn point '{chosenSpawnPoint.name}' at {chosenSpawnPoint.position}. " +
+                                 "Skipping this spawn. Open Window > AI > Navigation, verify the Humanoid (or matching) NavMeshSurface is baked, " +
+                                 "and that the blue navmesh tint in the Scene view covers the spawn points.");
                 continue;
             }
 

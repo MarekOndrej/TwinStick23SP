@@ -434,26 +434,32 @@ public class Enemy : MonoBehaviour
     }
 
     // Force the agent onto the navmesh. NavMeshAgent's auto-placement on
-    // Instantiate sometimes leaves agents unbound if the spawn point sits a
-    // hair off the navmesh, after which SetDestination silently does nothing
-    // and the enemy appears static forever. Calling Warp guarantees binding.
+    // Instantiate sometimes leaves agents unbound if the spawn point sits off
+    // the navmesh. Uses a NavMeshQueryFilter so we only consider navmeshes
+    // baked for THIS agent's type — a scene can have multiple agent-type
+    // navmeshes overlapping, and Warping to the wrong one would fail.
     private void EnsureOnNavMesh()
     {
         if (agent == null || !agent.enabled) return;
         if (agent.isOnNavMesh) return;
 
-        // Look for a navmesh point within a generous radius — most levels
-        // should have the navmesh within 3u of any sensible spawn point.
-        const float searchRadius = 5f;
-        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, searchRadius, NavMesh.AllAreas))
+        const float searchRadius = 50f;
+        var filter = new NavMeshQueryFilter
+        {
+            agentTypeID = agent.agentTypeID,
+            areaMask = NavMesh.AllAreas,
+        };
+
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, searchRadius, filter))
         {
             agent.Warp(hit.position);
             return;
         }
 
-        Debug.LogWarning($"Enemy '{name}' spawned at {transform.position} with no navmesh " +
-                         $"within {searchRadius}u. Check spawn point placement or navmesh bake. " +
-                         $"The enemy will fail OOB self-destruct in {outOfBoundsGracePeriod + outOfBoundsTimeout}s.");
+        Debug.LogWarning($"Enemy '{name}' spawned at {transform.position} with no navmesh of " +
+                         $"AgentTypeID {agent.agentTypeID} within {searchRadius}u. " +
+                         $"Re-bake the matching NavMeshSurface in Window > AI > Navigation. " +
+                         $"The enemy will OOB self-destruct in {outOfBoundsGracePeriod + outOfBoundsTimeout}s.");
     }
 
     // Editor-only: draw the enemy's sight range as a wire sphere in the Scene
