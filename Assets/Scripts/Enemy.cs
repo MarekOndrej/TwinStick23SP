@@ -265,18 +265,22 @@ public class Enemy : MonoBehaviour
             case EnemyMode.chasing:
                 hasRoamTarget = false;
                 roamWaitTimer = 0f;
-                // For melee enemies, agent.stoppingDistance MUST be inside
-                // meleeRange or the agent will halt out of attack reach and
-                // never damage the player. Prefab stoppingDistance (3.0) is
-                // larger than the default meleeRange (2.0), so without this
-                // clamp combat is broken. Ranged enemies don't care: their
+                // For melee enemies, agent.stoppingDistance MUST be WELL
+                // inside meleeRange. With meleeRange=2.0, a stoppingDistance
+                // of 1.0 leaves a full 1.0u margin so pathing drift,
+                // capsule-collider widths (player 0.5 + enemy 0.5 = 1.0
+                // center-to-center contact), and player movement can't push
+                // the agent's resting position outside attack reach.
+                // Previously used (meleeRange - 0.3) which only left 0.3u
+                // margin and damage frequently failed to land.
+                // Ranged enemies retain prefab stoppingDistance — their
                 // ChaseAndShoot routine controls stopping manually via
-                // isStopped, so we leave the prefab value alone for them.
+                // isStopped, independent of this value.
                 if (agent != null)
                 {
                     agent.stoppingDistance = useRangedAttack
                         ? _originalStoppingDistance
-                        : Mathf.Max(0.1f, Mathf.Min(_originalStoppingDistance, meleeRange - 0.3f));
+                        : Mathf.Max(0.1f, Mathf.Min(_originalStoppingDistance, meleeRange * 0.5f));
                 }
                 break;
 
@@ -528,21 +532,30 @@ public class Enemy : MonoBehaviour
         // Add time to the timer
         damageTimer += Time.deltaTime;
 
-        // Can we attack yet??
-        if (damageTimer >= damageDelay)
+        // Cooldown not finished — wait.
+        if (damageTimer < damageDelay) return;
+
+        // The cooldown elapsed. Are we actually close enough to bite?
+        bool inMeleeRange =
+            Vector3.Distance(transform.position, chaseTarget.position) < meleeRange;
+
+        if (!inMeleeRange)
         {
-            // Are we close to the player
-            if (Vector3.Distance(transform.position, chaseTarget.position) < meleeRange)
-            {
-                if (playerDamageableComponent)
-                {
-                    Debug.Log("I am dealing damage!");
-                    playerDamageableComponent.ReceiveDamage(damageAmount);
-                }
-            }
-            // Reset timer
-            damageTimer = 0;
+            // Out of range when the cooldown finished. CLAMP the timer at the
+            // cap (don't reset to 0) so the very next frame we cross into
+            // meleeRange, damage fires immediately. Previously this branch
+            // reset damageTimer to 0, which meant an enemy hovering right
+            // outside meleeRange would lose the entire 1-second cooldown
+            // for every miss and combat effectively never landed.
+            damageTimer = damageDelay;
+            return;
         }
+
+        if (playerDamageableComponent != null)
+        {
+            playerDamageableComponent.ReceiveDamage(damageAmount);
+        }
+        damageTimer = 0f;
     }
 
     private void ChaseAndShoot()
