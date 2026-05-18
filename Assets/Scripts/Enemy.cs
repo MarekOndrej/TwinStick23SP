@@ -17,20 +17,21 @@ public class Enemy : MonoBehaviour
     [FormerlySerializedAs("aggroDistance")]
     [SerializeField] float sightRange = 6f;
 
-    [Tooltip("After losing line of sight, the enemy keeps chasing for this " +
-             "many seconds before reverting to roaming. 0 = lose aggro " +
-             "immediately. Use a high value (or -1 for forever) for a relentless feel.")]
+    [Tooltip("Once the enemy has spotted the player, it stays aggroed for " +
+             "this many seconds even if the player goes out of sight range. " +
+             "-1 (default) = aggro forever once spotted; 0 = drop aggro the " +
+             "instant the player leaves sight range.")]
     [SerializeField] float aggroPersistence = -1f;
-
-    [Tooltip("Height above the enemy's transform origin from which the LOS " +
-             "raycast is cast (and toward the same height on the player). " +
-             "Avoids the raycast immediately hitting the floor.")]
-    [SerializeField] float sightEyeHeight = 1.0f;
 
     bool _hasSpottedPlayer = false;
     float _lastSawPlayerTime = -1f;
 
     NavMeshAgent agent;
+    // Original stoppingDistance from the prefab — used while chasing so melee
+    // enemies stop at a sensible distance to attack. While roaming we lower
+    // stoppingDistance so the agent actually arrives at roam destinations
+    // instead of stopping a long way short.
+    float _originalStoppingDistance;
 
     [Header("Health related")]
     [SerializeField] HealthBar healthBar;
@@ -128,6 +129,7 @@ public class Enemy : MonoBehaviour
         eventManager = Resources.Load<EventManagerSO>("EventManager");
 
         agent = GetComponent<NavMeshAgent>();
+        if (agent != null) _originalStoppingDistance = agent.stoppingDistance;
 
         _spawnedAt = Time.time;
 
@@ -237,27 +239,32 @@ public class Enemy : MonoBehaviour
         switch (currentEnemyMode)
         {
             case EnemyMode.chasing:
-                Debug.Log($"{name}: I'm going to chase!");
                 hasRoamTarget = false;
                 roamWaitTimer = 0f;
+                // Restore prefab stoppingDistance so melee enemies stop at a
+                // sensible distance before attacking.
+                if (agent != null) agent.stoppingDistance = _originalStoppingDistance;
                 break;
 
             case EnemyMode.roaming:
-                Debug.Log($"{name}: I'm going to roam!");
                 hasRoamTarget = false;
                 roamWaitTimer = 0f;
                 agent.ResetPath();
-                // Ranged enemies disable agent rotation while shooting; restore
-                // it for natural roaming behavior.
                 agent.updateRotation = true;
+                // Lower stoppingDistance during roaming so the agent actually
+                // arrives at roam destinations. Otherwise, with prefab
+                // stoppingDistance == roamMinMoveDistance (both ~3u), the
+                // agent considers itself "arrived" the moment SetDestination
+                // is called and never moves.
+                agent.stoppingDistance = 0.5f;
                 break;
 
             case EnemyMode.stopped:
-                Debug.Log($"{name}: I'm going to stay put!");
                 hasRoamTarget = false;
                 agent.ResetPath();
                 agent.isStopped = true;
                 agent.updateRotation = true;
+                if (agent != null) agent.stoppingDistance = _originalStoppingDistance;
                 break;
         }
     }
@@ -302,15 +309,16 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        // Reached destination
-        if (agent.remainingDistance <= Mathf.Max(agent.stoppingDistance, roamMinAcceptableDistance))
+        // Reached destination — use roamMinAcceptableDistance only (NOT
+        // stoppingDistance), because we lowered stoppingDistance for roaming
+        // to a small value. We also require the agent to have actually started
+        // moving (velocity > 0) at some point — otherwise the very first frame
+        // after SetDestination, while the path is being computed and velocity
+        // is still 0, would wrongly count as "arrived".
+        if (agent.remainingDistance <= roamMinAcceptableDistance && agent.hasPath)
         {
-            // Optional extra check so arrival feels more reliable
-            if (!agent.hasPath || agent.velocity.sqrMagnitude < 0.01f)
-            {
-                hasRoamTarget = false;
-                roamWaitTimer = roamWaitTime;
-            }
+            hasRoamTarget = false;
+            roamWaitTimer = roamWaitTime;
         }
     }
 
@@ -349,11 +357,19 @@ public class Enemy : MonoBehaviour
         return false;
     }
 
-    // === Line-of-sight aggro ===
+    // === Sight-range aggro ===
+    //
+    // Distance-based: if the player is within sightRange (planar, ignoring
+    // height differences), the enemy spots them. Once spotted, the enemy is
+    // committed — they don't lose sight just because the player walks behind
+    // a wall — unless aggroPersistence is set to a positive value.
+    //
+    // We deliberately don't raycast for walls between the enemy and player:
+    // the earlier raycast implementation gave too many false negatives
+    // (player collider on an unhandled layer, raycast hitting the enemy's
+    // own collider, etc.) and led to enemies appearing static. A pure
+    // distance check is robust enough for the small top-down arena.
 
-    // Returns true if the enemy should currently be chasing the player. Two
-    // ways to be chasing: actively seeing the player, or recently saw them
-    // and we're still inside the aggroPersistence window.
     private bool ShouldChase()
     {
         if (CanSeePlayerNow())
@@ -364,43 +380,21 @@ public class Enemy : MonoBehaviour
         }
 
         if (!_hasSpottedPlayer) return false;
-
         if (aggroPersistence < 0f) return true; // relentless — never lose aggro
         return Time.time - _lastSawPlayerTime <= aggroPersistence;
     }
 
-    // Raycasts from the enemy's "eye" toward the player's chest. If the first
-    // collider hit is the player (or one of its children), there's a clear
-    // line of sight; otherwise something is between us.
     private bool CanSeePlayerNow()
     {
         if (chaseTarget == null) return false;
 
-        Vector3 origin = transform.position + Vector3.up * sightEyeHeight;
-        Vector3 targetPoint = chaseTarget.position + Vector3.up * sightEyeHeight;
-        Vector3 toTarget = targetPoint - origin;
-        float distance = toTarget.magnitude;
+        // Planar distance — top-down arena, vertical separation should not
+        // affect sight (e.g., player on a slight ramp).
+        Vector3 toTarget = chaseTarget.position - transform.position;
+        toTarget.y = 0f;
+        float sqrDistance = toTarget.sqrMagnitude;
 
-        if (distance > sightRange) return false;
-
-        Vector3 direction = toTarget / distance; // already > 0 since distance < sightRange or we returned
-
-        if (Physics.Raycast(origin, direction, out RaycastHit hit, sightRange))
-        {
-            Transform hitT = hit.collider.transform;
-            // Walk up the hierarchy looking for the chase target — covers cases
-            // where the raycast lands on a child collider (e.g., a separate
-            // body mesh under the player root).
-            while (hitT != null)
-            {
-                if (hitT == chaseTarget) return true;
-                hitT = hitT.parent;
-            }
-            return false;
-        }
-
-        // Nothing in the way at all — line is clear.
-        return true;
+        return sqrDistance <= sightRange * sightRange;
     }
 
     // Allows the spawner (or any external code) to vary sight range per-wave
