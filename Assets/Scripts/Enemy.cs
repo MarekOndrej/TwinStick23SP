@@ -133,6 +133,13 @@ public class Enemy : MonoBehaviour
 
         _spawnedAt = Time.time;
 
+        // Defensive: if the spawn position is slightly off the navmesh
+        // (common when spawn points are placed above the floor in the editor),
+        // the NavMeshAgent's auto-placement may not bind. SetDestination then
+        // silently fails and the enemy stands still forever. Warp to the
+        // nearest navmesh point on Awake to guarantee binding.
+        EnsureOnNavMesh();
+
         // set current health to max
         currentHealth = maxHealth;
 
@@ -395,6 +402,40 @@ public class Enemy : MonoBehaviour
         float sqrDistance = toTarget.sqrMagnitude;
 
         return sqrDistance <= sightRange * sightRange;
+    }
+
+    // === NavMesh binding ===
+
+    // Force the agent onto the navmesh. NavMeshAgent's auto-placement on
+    // Instantiate sometimes leaves agents unbound if the spawn point sits a
+    // hair off the navmesh, after which SetDestination silently does nothing
+    // and the enemy appears static forever. Calling Warp guarantees binding.
+    private void EnsureOnNavMesh()
+    {
+        if (agent == null || !agent.enabled) return;
+        if (agent.isOnNavMesh) return;
+
+        // Look for a navmesh point within a generous radius — most levels
+        // should have the navmesh within 3u of any sensible spawn point.
+        const float searchRadius = 5f;
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, searchRadius, NavMesh.AllAreas))
+        {
+            agent.Warp(hit.position);
+            return;
+        }
+
+        Debug.LogWarning($"Enemy '{name}' spawned at {transform.position} with no navmesh " +
+                         $"within {searchRadius}u. Check spawn point placement or navmesh bake. " +
+                         $"The enemy will fail OOB self-destruct in {outOfBoundsGracePeriod + outOfBoundsTimeout}s.");
+    }
+
+    // Editor-only: draw the enemy's sight range as a wire sphere in the Scene
+    // view so you can SEE how far each enemy can detect the player. Yellow
+    // when not yet spotted, red once they're aggroed.
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = _hasSpottedPlayer ? Color.red : Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, sightRange);
     }
 
     // Allows the spawner (or any external code) to vary sight range per-wave
