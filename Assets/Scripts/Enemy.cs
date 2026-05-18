@@ -351,12 +351,26 @@ public class Enemy : MonoBehaviour
     {
         NavMeshPath path = new NavMeshPath();
 
+        // Filter all navmesh queries to THIS agent's type. The scene has
+        // multiple agent-type navmeshes overlapping (Humanoid + a custom
+        // type), so unfiltered queries log a "could not determine precisely
+        // which agent type should move" warning on every CalculatePath call,
+        // flooding the console at runtime. Restricting to the agent's own
+        // type also guarantees we don't pick a roam point on a navmesh this
+        // agent can't actually traverse.
+        int agentTypeID = (agent != null) ? agent.agentTypeID : 0;
+        var filter = new NavMeshQueryFilter
+        {
+            agentTypeID = agentTypeID,
+            areaMask = NavMesh.AllAreas,
+        };
+
         for (int i = 0; i < 15; i++)
         {
             Vector2 random2D = Random.insideUnitCircle * radius;
             Vector3 candidate = center + new Vector3(random2D.x, 0f, random2D.y);
 
-            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 3f, filter))
             {
                 Vector3 flatOffset = hit.position - transform.position;
                 flatOffset.y = 0f;
@@ -366,7 +380,7 @@ public class Enemy : MonoBehaviour
                     continue;
 
                 // Reject points that do not have a complete path
-                if (NavMesh.CalculatePath(transform.position, hit.position, NavMesh.AllAreas, path))
+                if (NavMesh.CalculatePath(transform.position, hit.position, filter, path))
                 {
                     if (path.status == NavMeshPathStatus.PathComplete)
                     {
