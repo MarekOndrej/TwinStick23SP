@@ -225,6 +225,9 @@ public class Enemy : MonoBehaviour
                 hasRoamTarget = false;
                 roamWaitTimer = 0f;
                 agent.ResetPath();
+                // Ranged enemies disable agent rotation while shooting; restore
+                // it for natural roaming behavior.
+                agent.updateRotation = true;
                 break;
 
             case EnemyMode.stopped:
@@ -232,6 +235,7 @@ public class Enemy : MonoBehaviour
                 hasRoamTarget = false;
                 agent.ResetPath();
                 agent.isStopped = true;
+                agent.updateRotation = true;
                 break;
         }
     }
@@ -370,13 +374,18 @@ public class Enemy : MonoBehaviour
 
         if (distance > rangedAttackRange)
         {
-            // Out of shooting range — close in.
+            // Out of shooting range — close in. Hand rotation control back to
+            // the NavMeshAgent so it can face the direction of travel naturally.
             agent.isStopped = false;
+            agent.updateRotation = true;
             agent.destination = chaseTarget.position;
             return;
         }
 
-        // In shooting range. Stop and face the target, then fire on cadence.
+        // In shooting range. We want the enemy to face the player directly so
+        // projectiles fire on-target, so take rotation control away from the
+        // agent — otherwise the agent fights us each frame, causing jitter.
+        agent.updateRotation = false;
         agent.isStopped = true;
 
         // Stop short of the stop distance so we don't walk into the player.
@@ -386,12 +395,15 @@ public class Enemy : MonoBehaviour
             agent.destination = chaseTarget.position;
         }
 
-        // Face the player.
+        // Face the player. Smooth rotation via RotateTowards using the agent's
+        // own angular speed so it feels consistent with the agent's normal turn.
         Vector3 toTarget = chaseTarget.position - transform.position;
         toTarget.y = 0f;
         if (toTarget.sqrMagnitude > 0.0001f)
         {
-            transform.rotation = Quaternion.LookRotation(toTarget);
+            Quaternion targetRot = Quaternion.LookRotation(toTarget);
+            float maxDeg = (agent.angularSpeed > 0f ? agent.angularSpeed : 360f) * Time.deltaTime;
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, maxDeg);
         }
 
         _rangedAttackTimer += Time.deltaTime;
