@@ -1,7 +1,9 @@
 # Tests in TwinStick23SP
 
-Unity-Test-Framework edit-mode tests live in `Assets/Tests/EditMode/` under
-the `Tests.EditMode` assembly. Currently:
+⚠ **Status: Not yet wired up. See "Why deferred" below.**
+
+The plan is to keep a small edit-mode test suite under `Assets/Tests/EditMode/`
+covering the most-shared foundation code:
 
 - `EventManagerSOTests.cs` — covers the ScriptableObject event bus: no-throw
   on empty events, single + multiple subscriber dispatch, unsubscribe,
@@ -11,62 +13,77 @@ the `Tests.EditMode` assembly. Currently:
 - `PrefabPoolTests.cs` — covers the object pool: factory returns the same
   pool for the same prefab, `Get` produces an active instance at the right
   pose, `Release` returns the instance and deactivates it, and the next
-  `Get` reuses the released instance (the whole point of pooling).
+  `Get` reuses the released instance.
 
-Each test builds its own `ScriptableObject.CreateInstance<EventManagerSO>()`
-or `GameObject.CreatePrimitive(Cube)` so tests are isolated and never mutate
-shared project assets.
+Both files exist in git history (commit `b5dca39`, then reverted) and can
+be brought back once the asmdef issue is properly solved.
 
-## How to run
+## Why deferred
 
-Inside the Unity Editor:
+Unity test assemblies live in their own `.asmdef`. That asmdef needs to be
+able to see the game scripts (`EventManagerSO`, `PrefabPool`, etc.) which
+currently live in `Assembly-CSharp` (the default catch-all assembly because
+the game scripts don't have their own `.asmdef`).
 
-1. Open the project.
-2. **Window → General → Test Runner**.
-3. Click the **EditMode** tab at the top.
-4. Click **Run All**, or click an individual test name to run just that one.
+**Unity does not allow an asmdef to reference `Assembly-CSharp` directly.**
+The canonical solution is to wrap the game scripts in their own asmdef
+(e.g. `Gameplay.asmdef`), then have the test asmdef reference that.
 
-All green checkmarks → all tests passed.
+I attempted to shortcut this by listing `"Assembly-CSharp"` in the test
+asmdef's references — Unity rejected it with a compile error that put the
+whole project into Safe Mode. The tests + asmdef have been removed to
+restore compilation.
 
-From the command line (CI or quick sanity sweep):
+## How to set up properly (next time we revisit)
 
+1. **Wrap the game in an asmdef.**
+   Create `Assets/Scripts/Gameplay.asmdef` with appropriate references
+   (UnityEngine.UI, TMPro, Unity.Cinemachine, Unity.InputSystem, etc.).
+   Pick references carefully — all script dependencies must be listed.
+
+2. **Recreate the test asmdef** under `Assets/Tests/EditMode/`:
+   ```json
+   {
+       "name": "Tests.EditMode",
+       "references": [
+           "UnityEngine.TestRunner",
+           "UnityEditor.TestRunner",
+           "Gameplay"
+       ],
+       "includePlatforms": ["Editor"],
+       "overrideReferences": true,
+       "precompiledReferences": ["nunit.framework.dll"],
+       "autoReferenced": false,
+       "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+   }
+   ```
+
+3. **Restore the test files** from commit `b5dca39` (before the deletion):
+   ```
+   git checkout b5dca39 -- Assets/Tests/EditMode/EventManagerSOTests.cs
+   git checkout b5dca39 -- Assets/Tests/EditMode/PrefabPoolTests.cs
+   ```
+   Then `git add` + commit.
+
+4. **Open the project in Unity, verify it compiles, run Window → General → Test Runner**.
+
+## How to run (once tests are back)
+
+In the Unity Editor: **Window → General → Test Runner → EditMode tab → Run All**.
+
+From the command line:
 ```
 Unity.exe -batchmode -nographics -runTests -testPlatform EditMode \
   -projectPath . -testResults TestResults.xml -logFile -
 ```
 
-(Adjust `Unity.exe` to your install path; on Windows it's typically
-`C:\Program Files\Unity\Hub\Editor\6000.3.6f1\Editor\Unity.exe`.)
+## What I'd test next (rough priority)
 
-## Adding more tests
+1. **`LevelManager` state transitions** (play-mode) — would catch the
+   `resumed` enum value bug class.
+2. **`GameSession` score accumulation** (edit-mode).
+3. **`Enemy.IsOutOfBounds` grace period** (play-mode) — guards the audit
+   fix we did during ranged-enemy debugging.
+4. **`Projectile.OnTakenFromPool` reset** — guards the pool contract.
 
-For pure-C# / ScriptableObject logic → edit-mode is cheap and fast. Drop a
-`*.cs` file into `Assets/Tests/EditMode/` with `[Test]` methods, and Test
-Runner picks them up automatically.
-
-For things that need scene lifecycle (Awake/OnEnable/Update sequencing, Time,
-physics) → use play-mode tests. Create `Assets/Tests/PlayMode/` with its own
-`.asmdef` (`includePlatforms` empty + nothing in `excludePlatforms` so it
-runs in both Editor and standalone). Use `[UnityTest]` with `IEnumerator`
-returns instead of `[Test]`.
-
-## What I'd test next (roughly in priority order)
-
-1. **`LevelManager` state transitions** — play-mode test that creates a fresh
-   scene with an EventManagerSO and a LevelManager, fires Pause/Resume/Game
-   Over via the event bus, and asserts `CurrentGameState`. Would catch the
-   class of bug that bit us early on (`resumed` enum value used in code but
-   nowhere else).
-2. **`GameSession` score accumulation** — instantiate a GameSession via
-   `GameObject.AddComponent`, subscribe it to a fresh event manager, raise
-   `EnemyDefeated(10)` three times, assert `CurrentScore == 30` and that
-   `HighScore` was bumped.
-3. **`Enemy.IsOutOfBounds` grace period** — verify that a freshly-Awoken
-   enemy doesn't self-destruct during the grace window even if no navmesh
-   is present. (Would catch the bug we fixed in the audit pass.)
-4. **`Projectile.OnTakenFromPool` reset** — assert that timeAlive,
-   bounceCounter, and rb.linearVelocity all reset cleanly when the
-   projectile is reacquired from the pool.
-
-Each of these is ~15-30 lines, so the test surface can grow organically as
-new systems land.
+Each is 15-30 lines; the test surface can grow organically.
