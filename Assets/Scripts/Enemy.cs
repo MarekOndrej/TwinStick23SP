@@ -178,8 +178,25 @@ public class Enemy : MonoBehaviour
         // If game is paused....
         if (levelManager.CurrentGameState == GameState.paused)
         {
-            agent.isStopped = true;
+            SetAgentStopped(true);
             return; // nothing else to do here
+        }
+
+        // Skip behavior if the agent isn't on the navmesh. This can happen
+        // briefly during init, after a knockback off the navmesh, or
+        // permanently if the spawn point ended up off the baked surface.
+        // The OOB check below will eventually KillSelf if it persists.
+        // Skipping early here avoids "X can only be called on an agent that
+        // has been placed on a NavMesh" errors from SetDestination/ResetPath.
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh)
+        {
+            // Still tick OOB so we don't get stuck off-mesh forever.
+            if (IsOutOfBounds())
+            {
+                _oobTimer += Time.deltaTime;
+                if (_oobTimer >= outOfBoundsTimeout) { KillSelf(); return; }
+            }
+            return;
         }
 
         // Out-of-bounds: if the enemy got knocked off the arena (or fell into
@@ -209,7 +226,7 @@ public class Enemy : MonoBehaviour
                 if (chaseTarget != null && ShouldChase())
                 {
                     // change enemy mode to chasing
-                    agent.isStopped = false;
+                    SetAgentStopped(false);
                     SetEnemyMode(EnemyMode.chasing);
                     ChaseAndAttack();
                     break;
@@ -229,7 +246,7 @@ public class Enemy : MonoBehaviour
             default:
                 // change enemy mode to stopped
                 SetEnemyMode(EnemyMode.stopped);
-                agent.isStopped = true;
+                SetAgentStopped(true);
                 break;
         }
 
@@ -269,7 +286,7 @@ public class Enemy : MonoBehaviour
             case EnemyMode.stopped:
                 hasRoamTarget = false;
                 agent.ResetPath();
-                agent.isStopped = true;
+                SetAgentStopped(true);
                 agent.updateRotation = true;
                 if (agent != null) agent.stoppingDistance = _originalStoppingDistance;
                 break;
@@ -278,7 +295,7 @@ public class Enemy : MonoBehaviour
 
     private void HandleRandomRoaming()
     {
-        agent.isStopped = false;
+        SetAgentStopped(false);
 
         // Do we already have a destination picked?
         // If not...
@@ -404,7 +421,17 @@ public class Enemy : MonoBehaviour
         return sqrDistance <= sightRange * sightRange;
     }
 
-    // === NavMesh binding ===
+    // === NavMesh helpers ===
+
+    // Sets agent.isStopped, but only if the agent is actually on the navmesh.
+    // Setting isStopped on an unbound agent throws a Unity error per call,
+    // which can flood the console; this no-ops in that case. Code paths that
+    // care about the agent moving should anyway re-check isOnNavMesh.
+    private void SetAgentStopped(bool stopped)
+    {
+        if (agent == null || !agent.isOnNavMesh) return;
+        agent.isStopped = stopped;
+    }
 
     // Force the agent onto the navmesh. NavMeshAgent's auto-placement on
     // Instantiate sometimes leaves agents unbound if the spawn point sits a
@@ -462,7 +489,7 @@ public class Enemy : MonoBehaviour
     private void ChaseAndMelee()
     {
         // Make sure agent is mobile
-        agent.isStopped = false;
+        SetAgentStopped(false);
 
         // Update agent's destination
         agent.destination = chaseTarget.position;
@@ -496,7 +523,7 @@ public class Enemy : MonoBehaviour
         {
             // Out of shooting range — close in. Hand rotation control back to
             // the NavMeshAgent so it can face the direction of travel naturally.
-            agent.isStopped = false;
+            SetAgentStopped(false);
             agent.updateRotation = true;
             agent.destination = chaseTarget.position;
             return;
@@ -506,12 +533,12 @@ public class Enemy : MonoBehaviour
         // projectiles fire on-target, so take rotation control away from the
         // agent — otherwise the agent fights us each frame, causing jitter.
         agent.updateRotation = false;
-        agent.isStopped = true;
+        SetAgentStopped(true);
 
         // Stop short of the stop distance so we don't walk into the player.
         if (distance > rangedStopDistance)
         {
-            agent.isStopped = false;
+            SetAgentStopped(false);
             agent.destination = chaseTarget.position;
         }
 
@@ -724,7 +751,7 @@ public class Enemy : MonoBehaviour
         bool hadAgent = agent != null && agent.enabled;
         if (hadAgent)
         {
-            agent.isStopped = true;
+            SetAgentStopped(true);
             agent.updatePosition = false;
             agent.updateRotation = false;
         }
@@ -750,7 +777,7 @@ public class Enemy : MonoBehaviour
             if (agent.isOnNavMesh) agent.Warp(transform.position);
             agent.updatePosition = true;
             agent.updateRotation = true;
-            agent.isStopped = false;
+            SetAgentStopped(false);
         }
 
         _knockbackRoutine = null;

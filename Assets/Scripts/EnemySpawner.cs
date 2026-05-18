@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemySpawner : MonoBehaviour
 {
@@ -171,7 +172,26 @@ public class EnemySpawner : MonoBehaviour
             }
 
             var chosenSpawnPoint = locations[Random.Range(0, locations.Count)];
-            var instance = Instantiate(prefab, chosenSpawnPoint.position, Quaternion.identity);
+            Vector3 spawnPos = chosenSpawnPoint.position;
+
+            // Snap to nearest navmesh point. The spawn-point Transforms might be
+            // placed slightly off the baked navmesh (Y offset, or past the bake
+            // boundary). If so, the spawned NavMeshAgent fails to bind and the
+            // enemy stands still forever. We search a generous 20-unit radius
+            // so even spawn points placed well outside the navmesh are recovered.
+            if (NavMesh.SamplePosition(spawnPos, out NavMeshHit navHit, 20f, NavMesh.AllAreas))
+            {
+                spawnPos = navHit.position;
+            }
+            else
+            {
+                Debug.LogWarning($"EnemySpawner: no navmesh within 20u of spawn point '{chosenSpawnPoint.name}' at {chosenSpawnPoint.position}. " +
+                                 "Skipping this spawn. Re-bake the navmesh (Window > AI > Navigation) so it covers the spawn points, " +
+                                 "or move the spawn points onto the walkable area.");
+                continue;
+            }
+
+            var instance = Instantiate(prefab, spawnPos, Quaternion.identity);
             instance.SetChaseTarget(chaseTarget);
             // Apply per-wave sight range override (no-op when -1).
             instance.SetSightRange(sightRangeOverride);
